@@ -1,23 +1,66 @@
+/*
+    𝑃(𝐴 𝑜𝑟 𝐵) = 𝑃(𝐴) + 𝑃(𝐵) − 𝑃(𝐴 𝑎𝑛𝑑 𝐵)
+    𝑃(𝐴|𝐵) = 𝑃(𝐴 𝑎𝑛𝑑 𝐵) 𝑃(𝐵)
+*/
+
 class Card {
     constructor(t, n, v, i) {
         this.type = t;
         this.name = n;
         this.value = v;
         this.index = i;
-
-        this.init();
-    }
-
-    init() {
-        switch (this.type) {
-            case 'awesome':
-                break;
-            default:
-                console.log('no type?');
-                break;
-        }
     }
 }
+
+/*
+switch (this.type) {
+    case 'spades':
+        break;
+    case 'clubs':
+        break;
+    case 'diamonds':
+        break;
+    case 'hearts':
+        break;
+    case 'joker':
+        break;
+    default:
+        console.log('no type?');
+        break;
+}
+
+switch (this.name) {
+    case 'Ace':
+        break;
+    case '2':
+        break;
+    case '3':
+        break;
+    case '4':
+        break;
+    case '5':
+        break;
+    case '6':
+        break;
+    case '7':
+        break;
+    case '8':
+        break;
+    case '9':
+        break;
+    case '10':
+        break;
+    case 'Jack':
+        break;
+    case 'Queen':
+        break;
+    case 'King':
+        break;
+    case 'Joker':
+        break;
+}
+
+*/
 
 class Deck {
     constructor() {
@@ -98,10 +141,6 @@ class Deck {
         this.shuffle();
     }
 
-    getCardCount() {
-        return this.cards.length;
-    }
-
     // https://www.geeksforgeeks.org/dsa/shuffle-a-given-array-using-fisher-yates-shuffle-algorithm/
     shuffle() {
         console.log(this.cards);
@@ -117,18 +156,15 @@ class Deck {
 
     deal(player) {
 
-        // Exit if no cards in deck.
-        if (this.cards[0] == undefined) {
-            console.error('Game over.');
-            return false;
-        }
-
-        // Pick card up from deck.
+        // Pick card up from deck and give the card to the player.
+        // shift returns the element it removes the from 'top' (0th index)
         const card = this.cards.shift();
-
-        // Give the card to the player.
         player.addCard(card);
+        player.decide(card);
     }
+
+    getCards() { return this.cards; }
+    getCardCount() { return this.cards.length; }
 }
 
 class Player {
@@ -141,6 +177,8 @@ class Player {
 
         this.toLeft = tl; // integer 
         this.toRight = tr; // integer of player index in circle..? right!?
+    
+        this.isDealer = false;
     }
 
     addCard(card) {
@@ -151,8 +189,14 @@ class Player {
         this.cards.splice(index, 1); // remove 1 card at specified index.
     }
 
+    // decide what to do with the card you have been dealt.
+    decide() {
+
+    }
+
     setToLeft(value) { this.toLeft = value; }
     setToRight(value) { this.toRight = value; }
+    setIsDealer(value) { this.isDealer = value; }
 
     getToLeft() { return this.toLeft; }
     getToRight() { return this.toRight; }
@@ -160,17 +204,13 @@ class Player {
     getName() { return this.name; }
     getColour() { return this.colour; }
     getCards() { return this.cards; } // for eventual probability testing, with different paths.
-}
-
-// to trade cards between two players?
-class CardTrader {
-
+    getIsDealer() { return this.isDealer; }
 }
 
 class Game {
     constructor(data) {
         this.data = data;
-        this.dealer = undefined; // The current dealer (a player instance), might make it easier to reference.
+        this.dealer = undefined; // The current dealer (a player instance).
         this.players = []; // In order from dealer to left of dealer all the way around the circle.
         this.turn = 0;
         this.deck = new Deck();
@@ -180,6 +220,8 @@ class Game {
 
     init() {
 
+        this.players = [];
+
         // Create players from player data.
         this.data.forEach((index, item) => {
             const player = new Player(item.name, item.colour, item.wins)
@@ -187,20 +229,26 @@ class Game {
             player.setToLeft(index + 1);
             player.setToRight(index - 1);
 
-            if (index === data.length - 1) player.setToLeft(0);
+            if (index === this.data.length - 1) player.setToLeft(0);
             if (index === 0) player.setToRight(data.length - 1); // the index of the last player (not yet created at this point).
         
             this.players.push(player);
         });
 
         // Determine the first dealer.
+        const dealerIndex = Math.floor(Math.random() * (this.players.length - 1));
+        this.dealer = this.players[dealerIndex];
 
-        this.startGame();
-
+        this.startRunning();
     }
 
-    start() {
+    run() {
+        while (this.deck.getCardCount() > 0 && this.running) {
+            this.deck.deal(this.dealer);
+            console.log(this.deck.getCards());
 
+            this.monitor();
+        }
     }
 
     monitor() {
@@ -209,8 +257,26 @@ class Game {
     }
 
     reset() {
-
+        this.deck.init();
+        this.init();
     }
+
+    switchDealer(player) {
+        // references the player instance held inside the this.players array.
+        this.dealer.setIsDealer(false);
+        player.setIsDealer(true);
+        this.dealer = player;
+    }
+
+    startRunning() { 
+        this.running = true;
+        this.run();
+    }
+
+    nextTurn() { this.turn++; }
+    getTurn() { return this.turn; }
+
+    stopRunning() { this.running = false; }
 }
 
 new Game([
