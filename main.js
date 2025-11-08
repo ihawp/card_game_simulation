@@ -62,6 +62,15 @@ switch (this.name) {
 
 */
 
+class Dealer {
+    constructor() {
+        this.player = undefined;
+        this.deck = new Deck();
+    }
+
+
+}
+
 class Deck {
     constructor() {
         this.data = [
@@ -122,44 +131,84 @@ class Deck {
         ];
         this.cards = [];
 
+        this.data.forEach((item, index) => {
+            const card = new Card(
+                item.type,
+                item.name,
+                item.value,
+                index
+            );
+            this.cards.push(card);
+        });
+
         this.init();
     }
 
     init() {
         this.cards = []; // for replay.
         this.data.forEach((item, index) => {
-            this.cards.push(
-                new Card(
-                    item.type,
-                    item.name,
-                    item.value,
-                    index
-                )
+            const card = new Card(
+                item.type,
+                item.name,
+                item.value,
+                index
             );
+            this.cards.push(card);
         });
-
         this.shuffle();
     }
 
     // https://www.geeksforgeeks.org/dsa/shuffle-a-given-array-using-fisher-yates-shuffle-algorithm/
+    // Fisher-Yates shuffle.
     shuffle() {
-        console.log(this.cards);
-        for (let i = this.cards.length - 1; i >= 0; i--) {
+        const { cards } = this;
+        for (let i = cards.length - 1; i >= 0; i--) {
             let j = Math.floor(Math.random() * (i + 1));
-            let k = this.cards[i];
-            this.cards[i] = this.cards[j];
-            this.cards[j] = k;
-            // [arr[i], arr[j]] = [arr[j], arr[i]] not a fan of this.
+            [cards[i], cards[j]] = [cards[j], cards[i]];
         }
-        console.log(this.cards);
+        this.cards = cards;
     }
 
     deal(player) {
 
-        // Pick card up from deck and give the card to the player.
-        // shift returns the element it removes the from 'top' (0th index)
-        const card = this.cards.shift();
-        player.addCard(card);
+        return new Promise((res, rej) => {
+            if (this.cards[0] == undefined) {
+                rej("Game over.");
+            }
+
+            if (player.isDealer) {
+                console.log(player, 'this play is a dealer');
+            }
+
+            // Pick card up from deck and give the card to the player.
+            // shift returns the element it removes the from 'top' (0th index)
+            const card = this.cards.shift();
+
+            player.addCard(card);
+            const response = this.checkCard(card, player);
+
+            if (response != 'self') {
+                res(true);
+            } else {
+                res(true);
+                console.warn('here', card);
+            }
+
+        });
+
+    }
+
+    // perform automatic checking for things players can't ask for because this is code, not real life card game with friends.
+    checkCard(card, player) {
+        switch (card.name) {
+            case 'Joker':
+            case '2':
+                this.deal(player);
+                return 'self';
+            default:
+                break;
+        }
+
         player.decide(card);
     }
 
@@ -169,14 +218,13 @@ class Deck {
 
 class Player {
     constructor(n, c, w, tl, tr) {
-        // Info would be attached to session, or at least pulled from database.
         this.name = n;
         this.colour = c;
         this.wins = w;
         this.cards = [];
 
         this.toLeft = tl; // integer 
-        this.toRight = tr; // integer of player index in circle..? right!?
+        this.toRight = tr; // integer of player index in circle..? right!? going clockwise.
     
         this.isDealer = false;
     }
@@ -190,8 +238,16 @@ class Player {
     }
 
     // decide what to do with the card you have been dealt.
-    decide() {
-
+    decide(card) {
+        // 2s and jokers automatically dealt with, as well as cards with value as name (numbers)
+        switch (card.name) {
+            case 'Queen':
+                break;
+            case 'Ace':
+                break;
+            default:
+                break;
+        }
     }
 
     setToLeft(value) { this.toLeft = value; }
@@ -207,6 +263,30 @@ class Player {
     getIsDealer() { return this.isDealer; }
 }
 
+class Monitor {
+    constructor() {
+
+
+        // the states saved at the beginning and end of the most recent cycle.
+        this.currentStart = undefined;
+        this.currentEnd = undefined;
+
+    }
+
+    start() {
+
+    }
+
+    end() {
+
+    }
+
+    compare() {
+
+    }
+
+}
+
 class Game {
     constructor(data) {
         this.data = data;
@@ -214,6 +294,7 @@ class Game {
         this.players = []; // In order from dealer to left of dealer all the way around the circle.
         this.turn = 0;
         this.deck = new Deck();
+        this.monitor = new Monitor();
 
         this.init();
     }
@@ -238,22 +319,28 @@ class Game {
         // Determine the first dealer.
         const dealerIndex = Math.floor(Math.random() * (this.players.length - 1));
         this.dealer = this.players[dealerIndex];
+        this.turn = dealerIndex;
 
         this.startRunning();
     }
 
-    run() {
+    async run() {
         while (this.deck.getCardCount() > 0 && this.running) {
-            this.deck.deal(this.dealer);
-            console.log(this.deck.getCards());
+            this.monitor.start();
 
-            this.monitor();
+            // dealer deals a card to the proper player (the player whos turn it is)
+            // that player decides what to do with the card, or Deck() automatically
+            // deals with the card.
+
+            const player = this.players[this.turn];
+            const response = await this.deck.deal(player);
+            
+            console.log(response);
+
+            this.nextTurn();
+
+            this.monitor.end();
         }
-    }
-
-    monitor() {
-        // Monitor the game stats in real time to find probability statistics.
-        console.log('bananaphone');
     }
 
     reset() {
@@ -273,7 +360,10 @@ class Game {
         this.run();
     }
 
-    nextTurn() { this.turn++; }
+    nextTurn() {
+        if (this.turn + 1 == this.players.length - 1) return this.turn = 0;
+        this.turn++;
+    }
     getTurn() { return this.turn; }
 
     stopRunning() { this.running = false; }
