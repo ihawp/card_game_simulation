@@ -344,6 +344,7 @@ class PlayerManager {
     }
 
     switchDealer(player) {
+        console.error('Switching dealer to:', player.playerIndex);
         this.dealer.player.setIsDealer(false);
         player.setIsDealer(true);
         this.dealer.player = player;
@@ -364,15 +365,13 @@ class PlayerManager {
                 trade ? await player.queenTrade(index, player, player2) : null;
                 break;
             case 'Ace':
-                // remove the ace from hand
                 if (isSpades) {
                     player.removeCard(index);
-                    this.maybeSwitchDealer(player);
+                    this.maybeSwitchDealer(player); // use maybe because maybe the player just wants to discard the ace.
                 }
                 break;
             case 'Jack':
-                // politely request to become dealer.
-                this.maybeSwitchDealer(player);
+                this.maybeSwitchDealer(player); // Politely request to become dealer.
                 break;
             default:
                 break;
@@ -381,7 +380,7 @@ class PlayerManager {
     }
 
     nextTurn() {
-        if (this.turn + 1 == this.getPlayers().length - 1) return this.turn = 0;
+        if (this.turn + 1 == this.getPlayers().length) return this.turn = 0;
         this.turn++;
     }
 
@@ -392,11 +391,12 @@ class PlayerManager {
         this.getPlayers().forEach(player => {
 
             const cards = player.getCards();
-            if (cards.length == 0) return;
+            if (cards.length == 0) {
+                console.warn('Player with no cards:', player);
+                return;
+            };
 
             let grapples = 0;
-
-            if (cards.length == 0) return;
 
             cards.forEach(card => {
 
