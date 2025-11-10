@@ -20,8 +20,7 @@ There are 54 cards (standard deck with 2 jokers), any player can and likely will
 
 Any dealer can look at the top card before any of their turns while they are the dealer. The dealer can deal the card they see to themself or give it to the player on the left/right of them. If the dealer chose to give the card to another player, the cards will be dealt in that direction, ultimately the dealer must choose which direction the cards will be dealt each time it is their turn.
 
-If any player draws the Ace of Spades they must make it known by placing it on the table face-up.
-The player can redeem the card at any time within their next 3 turns to become the dealer. The card can be redeemed by placing it in the discard pile.
+If any player draws the Ace of Spades they can redeem it to immediatley become the dealer, or discard it.
 
 The first dealer is determined by pulling cards  (every player gets a card) from the pile until only one person has the highest value card.
 

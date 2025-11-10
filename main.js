@@ -150,26 +150,18 @@ class Deck {
     }
 
     async deal(player) {
-
         return new Promise((res, rej) => {
-            if (this.cards[0] == undefined || this.cards.length == 0) {
-                rej("Game over.");
-            }
+            if (this.cards[0] == undefined || this.cards.length == 0) return rej("Game over.");
 
             // Pick card up from deck and give the card to the player.
             // shift returns the element it removes the from 'top' (0th index)
             const card = this.cards.shift();
-
             player.addCard(card);
+
             const response = this.checkCard(card, player);
+            response != 'self' ? res(true) : res('self');
 
-            if (response != 'self') {
-                res(true);
-            } else {
-                res('self');
-            }
         });
-
     }
 
     // perform automatic checking for things players can't ask for because this is code, not real life card game with friends.
@@ -304,7 +296,7 @@ class PlayerManager {
         this.players = [];
         this.dealer = {
             player: undefined,
-            turnsAsDealer: 0,
+            turnsAsDealer: 0, // essentially cards dealt
             index: 0,
         };
         this.turn = 0; // Index of the player (in this.players) whos turn it is.
@@ -341,8 +333,6 @@ class PlayerManager {
             index: dealerIndex,
         };
         this.turn = dealerIndex;
-
-        console.log(this.dealer);
     }
 
     maybeSwitchDealer(player) {
@@ -354,8 +344,6 @@ class PlayerManager {
     }
 
     switchDealer(player) {
-        console.warn('SWITCHING DEALER');
-        console.log(player);
         this.dealer.player.setIsDealer(false);
         player.setIsDealer(true);
         this.dealer.player = player;
@@ -376,25 +364,56 @@ class PlayerManager {
                 trade ? await player.queenTrade(index, player, player2) : null;
                 break;
             case 'Ace':
-                // place on table etc. using Table();
-                isSpades ? true : false;
+                // remove the ace from hand
+                if (isSpades) {
+                    player.removeCard(index);
+                    this.maybeSwitchDealer(player);
+                }
                 break;
             case 'Jack':
                 // politely request to become dealer.
-                if (this.dealer.player == undefined) return;
                 this.maybeSwitchDealer(player);
                 break;
             default:
-                // Log information about the interact() use.
                 break;
         }
-
-        
+        // Log information about the interact() use.
     }
 
     nextTurn() {
         if (this.turn + 1 == this.getPlayers().length - 1) return this.turn = 0;
         this.turn++;
+    }
+
+    checkWinner() {
+        let mostGrapples = 0;
+        let winner = undefined;
+
+        this.getPlayers().forEach(player => {
+
+            const cards = player.getCards();
+            if (cards.length == 0) return;
+
+            let grapples = 0;
+
+            if (cards.length == 0) return;
+
+            cards.forEach(card => {
+
+                // sometimes very rarely a card becomes undefined.
+                // this is because of a off-by-one error most likely! I will get lookin.
+                if (card == undefined) {
+                    console.error(undefined, player, card);
+                    return;
+                };
+
+                grapples += card.value;
+            });
+
+            if (grapples > mostGrapples) winner = player;
+        });
+
+        return winner;
     }
 
     addDealerTurn() { this.dealer.turnsAsDealer++; }
@@ -438,13 +457,9 @@ class Game {
                 this.playerManager.addDealerTurn();
             }
 
-            if (this.playerManager.getDealerTurns() > 4) {
-                this.playerManager.switchDealer(
-                    this.playerManager.getPlayers()[this.playerManager.dealer.index++]
-                );
-            }
-
-
+            if (this.playerManager.getDealerTurns() > 16) this.playerManager.switchDealer(
+                this.playerManager.getPlayers()[this.playerManager.dealer.index++]
+            );
 
             // this.monitor.end();
         }
@@ -459,41 +474,7 @@ class Game {
 
     stopRunning() {
         this.running = false;
-        this.checkWinner();
-    }
-
-    checkWinner() {
-        const players = this.playerManager.getPlayers();
-
-        let mostGrapples = 0;
-        let winner = undefined;
-
-        players.forEach(player => {
-
-            const cards = player.getCards();
-
-            let grapples = 0;
-
-            console.log(cards);
-            if (cards.length == 0) return;
-
-            cards.forEach(card => {
-
-                // sometimes very rarely a card becomes undefined.
-                // this is because of a off-by-one error most likely! I will get lookin.
-                if (card == undefined) {
-                    console.error(undefined, card);
-                    return;
-                };
-
-                grapples += card.value;
-            });
-
-            if (grapples > mostGrapples) winner = player;
-        });
-
-        console.log('Winner:', winner);
-
+        console.warn('Winner:', this.playerManager.checkWinner());
         if (this.timesRan < this.times) this.reset();
     }
 
