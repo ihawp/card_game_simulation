@@ -1,14 +1,14 @@
 # Rules
 
-<sup>Last Updated: November 6, 2025.</sup>
+<sup>Last Updated: November 10, 2025.</sup>
 
 A players turn consists of being dealt at least 1 card from the non-replacement deck.
 
 ## Card Values (in Grapples):
-- Joker: 2
+- Joker: -2
 - Queen/King: 7
 - Jack: 3
-- 2, 3, 4, 5, 6, 7, 8, 9, 10 (number cards) are worth their face value.
+- 2, 3, 4, 5, 6, 7, 8, 9, (number cards) are worth their face value, except for 10. 10 is instead worth it's face value negatively (-10).
 - Ace: 1
 
 ## If the card is a...
@@ -32,10 +32,10 @@ Once a dealer "taps out" the player can only deal again if they draw a Jack and 
 
 A dealer must "tap out" after 4 turns. The dealer can look at the top card before their first turn.
 
-Loan Shark:
+## Loan Shark:
 
 Any player who draws a Queen can trade it for 3 cards from another players hand or keep it. 
 
-The Queen of Spades can be traded for half of another players hand. If the amount of cards that the player you are taking from has is odd, the player must give you (n - 1)/ 2 cards in return for your queen or 3 cards, whichever is larger.
+The Queen of Spades can be traded for half of another players hand. If the amount of cards that the player you are taking from has is odd, the player must give you (n/2)-1 cards in return for your queen or 3 cards, whichever is larger. If the player does not have at least 3 cards, you can take all of their cards, or not it's up to you, they're your friend.
 
-Assuming all players are keeping their cards generally hidden, the player must point at the cards they want to trade the Queen for. The other player must accept the trade.
+Assuming all players are keeping their cards generally hidden, the player must point at the cards they want to trade the Queen for. The other player must accept the trade. The queen is 'disabled' and does not have the same functionality after the initial pull and trade are made.

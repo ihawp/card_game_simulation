@@ -2,53 +2,7 @@
     𝑃(𝐴 𝑜𝑟 𝐵) = 𝑃(𝐴) + 𝑃(𝐵) − 𝑃(𝐴 𝑎𝑛𝑑 𝐵)
     𝑃(𝐴|𝐵) = 𝑃(𝐴 𝑎𝑛𝑑 𝐵) 𝑃(𝐵)
 
-switch (this.type) {
-    case 'spades':
-        break;
-    case 'clubs':
-        break;
-    case 'diamonds':
-        break;
-    case 'hearts':
-        break;
-    case 'joker':
-        break;
-    default:
-        console.log('no type?');
-        break;
-}
-
-switch (this.name) {
-    case 'Ace':
-        break;
-    case '2':
-        break;
-    case '3':
-        break;
-    case '4':
-        break;
-    case '5':
-        break;
-    case '6':
-        break;
-    case '7':
-        break;
-    case '8':
-        break;
-    case '9':
-        break;
-    case '10':
-        break;
-    case 'Jack':
-        break;
-    case 'Queen':
-        break;
-    case 'King':
-        break;
-    case 'Joker':
-        break;
-}
-
+    There is hanging promise error for game over. Sometimes.
 */
 
 class Card {
@@ -72,10 +26,10 @@ class Deck {
             { type: "spades", name: "7", value: 7 },
             { type: "spades", name: "8", value: 8 },
             { type: "spades", name: "9", value: 9 },
-            { type: "spades", name: "10", value: 10 },
-            { type: "spades", name: "Jack", value: 0 },
-            { type: "spades", name: "Queen", value: 10 },
-            { type: "spades", name: "King", value: 10 },
+            { type: "spades", name: "10", value: -10 },
+            { type: "spades", name: "Jack", value: 3 },
+            { type: "spades", name: "Queen", value: 7 },
+            { type: "spades", name: "King", value: 7 },
             { type: "hearts", name: "Ace", value: 1 },
             { type: "hearts", name: "2", value: 2 },
             { type: "hearts", name: "3", value: 3 },
@@ -85,10 +39,10 @@ class Deck {
             { type: "hearts", name: "7", value: 7 },
             { type: "hearts", name: "8", value: 8 },
             { type: "hearts", name: "9", value: 9 },
-            { type: "hearts", name: "10", value: 10 },
-            { type: "hearts", name: "Jack", value: 0 },
-            { type: "hearts", name: "Queen", value: 10 },
-            { type: "hearts", name: "King", value: 10 },
+            { type: "hearts", name: "10", value: -10 },
+            { type: "hearts", name: "Jack", value: 3 },
+            { type: "hearts", name: "Queen", value: 7 },
+            { type: "hearts", name: "King", value: 7 },
             { type: "diamonds", name: "Ace", value: 1 },
             { type: "diamonds", name: "2", value: 2 },
             { type: "diamonds", name: "3", value: 3 },
@@ -98,10 +52,10 @@ class Deck {
             { type: "diamonds", name: "7", value: 7 },
             { type: "diamonds", name: "8", value: 8 },
             { type: "diamonds", name: "9", value: 9 },
-            { type: "diamonds", name: "10", value: 10 },
-            { type: "diamonds", name: "Jack", value: 0 },
-            { type: "diamonds", name: "Queen", value: 10 },
-            { type: "diamonds", name: "King", value: 10 },
+            { type: "diamonds", name: "10", value: -10 },
+            { type: "diamonds", name: "Jack", value: 3 },
+            { type: "diamonds", name: "Queen", value: 7 },
+            { type: "diamonds", name: "King", value: 7 },
             { type: "clubs", name: "Ace", value: 1 },
             { type: "clubs", name: "2", value: 2 },
             { type: "clubs", name: "3", value: 3 },
@@ -111,12 +65,12 @@ class Deck {
             { type: "clubs", name: "7", value: 7 },
             { type: "clubs", name: "8", value: 8 },
             { type: "clubs", name: "9", value: 9 },
-            { type: "clubs", name: "10", value: 10 },
-            { type: "clubs", name: "Jack", value: 0 },
-            { type: "clubs", name: "Queen", value: 10 },
-            { type: "clubs", name: "King", value: 10 },
-            { type: "joker", name: "Joker 1", value: 0 },
-            { type: "joker", name: "Joker 2", value: 0 }
+            { type: "clubs", name: "10", value: -10 },
+            { type: "clubs", name: "Jack", value: 3 },
+            { type: "clubs", name: "Queen", value: 7 },
+            { type: "clubs", name: "King", value: 7 },
+            { type: "joker", name: "Joker", value: -2 },
+            { type: "joker", name: "Joker", value: -2 }
         ];
         this.cards = [];
         this.init();
@@ -178,6 +132,7 @@ class Deck {
         player.decide(card, player);
     }
 
+    peekTopCard = () => { return this.cards[0]; }
     getCards = () => { return this.cards; }
     getCardCount = () => { return this.cards.length; }
 }
@@ -196,6 +151,8 @@ class Player {
         this.playerCount = pc;
         this.interact = interact;
         this.playerIndex = pi;
+
+        this.timesAsDealer = 0;
     }
 
     // Returns push so you get new length of array.
@@ -209,13 +166,9 @@ class Player {
         return this.cards.splice(index, 1); // remove 1 card at specified index.
     }
 
-    // decide what to do with the card you have been dealt.
+    // Decide what to do with the card you have been dealt.
     async decide(card, player) {
-        // console.log('Card:', card == undefined ? 'IT IS UNDEFINED' : false, 'Player:', player == undefined ? 'IT IS UNDEFINED' : false);
-        // 2s and jokers automatically dealt with, as well as cards with value as name (numbers)
-        // choose random player with Math.random() * this.playerCount, the player count should be passed.
-        // console.log(typeof requestedIndex == 'number' ? true : 'IT IS NOT A NUMBER');
-        const requestedIndex = Math.floor(Math.random() * this.playerCount);  // If needed for now.
+        const requestedIndex = Math.floor(Math.random() * this.playerCount);
         await this.interact(card, this.getCardCount() - 1, player, requestedIndex);
     }
 
@@ -224,25 +177,42 @@ class Player {
         // give the card to the other player.
         this.give(index, player2);
 
-        // select three random cards to take from the other player.
+        // Select three random cards to take from the other player.
         for (let i = 0; i < 3; i++) {
 
-            // select a random number based on the amount of cards they have
+            // Select a random number based on the amount of cards they have.
             const count = player2.getCardCount();
-
             if (count == 0) continue;
 
+            // Take the card from the other player.
             const cardSelected = Math.floor(Math.random() * (count - 1));
-
             await this.take(cardSelected, player2);
-
         }
     }
 
-    // take half of the other players hand.
-    queenOfSpadesTrade = (card, player2Trade2) => {
-        // trade for half of the other players hand or (n - 1) / 2 cards (where n is
+    // Take half of the other players hand.
+    queenOfSpadesTrade = async (card, player2) => {
+        // Trade for half of the other players hand or (n / 2) - 1 cards (where n is
         // total number of cards in their hand).
+        // give the card to the other player.
+        this.give(index, player2);
+
+        const count = player2.getCardCount();
+
+        const cc = (count / 2) - 1;
+        const cards = cc > 3 ? cc : 3; 
+
+        // Select three random cards to take from the other player.
+        for (let i = 0; i < count < 3 ? count : cards ; i++) {
+
+            // Select a random number based on the amount of cards they have.
+            const count = player2.getCardCount();
+            if (count == 0) continue;
+
+            // Take the card from the other player.
+            const cardSelected = Math.floor(Math.random() * (count - 1));
+            await this.take(cardSelected, player2);
+        }
     }
 
     // otherPlayer references a player object.
@@ -260,15 +230,13 @@ class Player {
         this.removeCard(index);
     }
 
-    // trade 1 for 1
-    // index1 and index2 are indexes of cards to be traded
-    // index1 is the Player instance card to trade, and index2 is the otherPlayer
-    // card instance to trade.
-    // otherPlayer is the player object to trade with.
+    // Trade 1 for 1...or take!?
     trade = (index1, index2, otherPlayer) => {
         if (index1) this.give(index1, otherPlayer);
         if (index2) this.take(index2, otherPlayer);
     }
+
+    addTimeAsDealer = () => { this.timesAsDealer++; }
 
     setToLeft(value) { this.toLeft = value; }
     setToRight(value) { this.toRight = value; }
@@ -341,6 +309,7 @@ class PlayerManager {
     switchDealer(player) {
         this.dealer.player.setIsDealer(false);
         player.setIsDealer(true);
+        player.addTimeAsDealer();
         this.dealer.player = player;
         this.dealer.index = player.playerIndex;
         this.dealer.turnsAsDealer = 0;
@@ -360,13 +329,11 @@ class PlayerManager {
 
         switch (card.name) {
             case 'Queen':
-                trade ? await player.queenTrade(index, player, player2) : null;
+                isSpades ? await player.queenOfSpadesTrade() : trade ? await player.queenTrade(index, player, player2) : null;
                 break;
             case 'Ace':
                 if (isSpades) {
-                    console.log(player.getCards());
                     player.removeCard(index);
-                    console.log(player.getCards());
                     this.maybeSwitchDealer(player); // use maybe because maybe the player just wants to discard the ace.
                 }
                 break;
@@ -406,7 +373,7 @@ class PlayerManager {
             if (grapples > mostGrapples) winner = player;
         });
 
-        return winner;
+        console.warn('Winner:', winner, '\n', 'Times as Dealer:', winner.timesAsDealer);
     }
 
     addDealerTurn() { this.dealer.turnsAsDealer++; }
@@ -415,7 +382,23 @@ class PlayerManager {
     getTurn = () => { return this.turn; }
 }
 
-class Game {
+class Monitor {
+    constructor(pm, d) {
+        this.playerManager = pm;
+        this.deck = d;
+    }
+
+    checkState() {
+        // check and record the current state of the game.
+        // probabilities and all.
+
+
+
+
+    }
+}
+
+class GameManager {
     constructor(data, times) {
         this.data = data;
         this.times = times;
@@ -423,7 +406,9 @@ class Game {
 
         this.playerManager = new PlayerManager(data); // In order from dealer to left of dealer all the way around the circle.
         this.deck = new Deck(); // the deck of cards.
-        // this.monitor = new Monitor(); // Logging
+        this.monitor = new Monitor(this.playerManager, this.deck); // Logging
+
+        this.startRunning();
     }
 
     init() {
@@ -441,8 +426,8 @@ class Game {
             const player = this.playerManager.getPlayers()[this.playerManager.getTurn()];
             const response = {m:undefined};
 
+            // Dealer Turn.
             if (this.playerManager.dealer.index == this.playerManager.turn) {
-                console.log('it is the dealers turn.');
 
                 // if it is the dealers turn the dealer has the option to...
                 // look at the card,
@@ -450,26 +435,33 @@ class Game {
                 // or deal it to the next player in the circle.
                 const randomNumber = Math.random();
                 const lookAtCard = randomNumber > 0.5;
+                let sway = 0.25;
 
                 if (lookAtCard) {
+                    sway = 0.15;
+                    const card = this.deck.peekTopCard();
 
-                    if (randomNumber < 0.25) {
-                        console.error('HERE', this.playerManager.getPlayers()[player.getToLeft()]);
-                        response.m = await this.deck.deal(this.playerManager.getPlayers()[player.getToLeft()]);
-                        this.playerManager.updateDealDirection(1);
+                    if (card.value < 1) {
+                        console.log(card.value);
+                        sway = 0.5; // Don't keep the card.
                     }
+                }
 
-                    if (0.25 <= randomNumber && randomNumber <= 0.75) {
-                        response.m = await this.deck.deal(player);
-                        this.playerManager.updateDealDirection(randomNumber > 0.5 ? 0 : 1);
-                    }
+                if (randomNumber < sway) {
+                    response.m = await this.deck.deal(this.playerManager.getPlayers()[player.getToLeft()]);
+                    this.playerManager.updateDealDirection(0);
+                    this.playerManager.nextTurn(); // skip the player who just got 'the dealers card.'
+                }
 
-                    if (randomNumber > 0.75) {
-                        console.error('HERE', this.playerManager.getPlayers()[player.getToRight()]);
-                        response.m = await this.deck.deal(this.playerManager.getPlayers()[player.getToRight()]);
-                        this.playerManager.updateDealDirection(1);
-                    }
+                if (sway <= randomNumber && randomNumber <= 1 - sway) {
+                    response.m = await this.deck.deal(player);
+                    this.playerManager.updateDealDirection(randomNumber > 0.5 ? 0 : 1);
+                }
 
+                if (randomNumber > 1 - sway) {
+                    response.m = await this.deck.deal(this.playerManager.getPlayers()[player.getToRight()]);
+                    this.playerManager.updateDealDirection(1);
+                    this.playerManager.nextTurn(); // move to the player who just got 'the dealers card.'
                 }
 
             } else {
@@ -477,7 +469,7 @@ class Game {
             }
 
             if (response.m != 'self') {
-                this.playerManager.nextTurn();
+                this.playerManager.nextTurn(); // potentially skip any players that got dealers cards.
                 this.playerManager.addDealerTurn();
             }
 
@@ -502,7 +494,7 @@ class Game {
 
     stopRunning() {
         this.running = false;
-        const winner = this.playerManager.checkWinner(); console.warn('Winner:', winner);
+        this.playerManager.checkWinner();
         if (this.timesRan < this.times) this.reset();
     }
 
@@ -511,20 +503,17 @@ class Game {
         this.startRunning();
     }
 
+    getRunning = () => { return this.running; }
+
 }
 
-new Game(
+new GameManager(
     [
         { name: "PlayerOne", colour: "blue", wins: 15 },
         { name: "PlayerTwo", colour: "red", wins: 12 },
         { name: "PlayerThree", colour: "green", wins: 18 },
-        { name: "PlayerFour", colour: "purple", wins: 20 }
+        { name: "PlayerFour", colour: "purple", wins: 20 },
+        { name: "PlayerFive", colour: "yellow", wins: 27 }
     ],
-    4 // Amount of simulated games to run.
-).startRunning();
-
-// Integrate into nodejs project so that there is access to file 
-// system and data can be recorded usefully for display after
-// a request is made for some data.
-
-// the game could have call to start from here and then use result as all the collected data from the game.
+    10 // Amount of simulated games to run.
+);

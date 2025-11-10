@@ -1,0 +1,14 @@
+{
+  "name": "fom12_card_game",
+  "version": "1.0.0",
+  "description": "<sup>Last Updated: November 10, 2025.</sup>",
+  "main": "main.js",
+  "scripts": {
+    "start": "npm start",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module"
+}
