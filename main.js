@@ -152,7 +152,7 @@ class Deck {
     async deal(player) {
 
         return new Promise((res, rej) => {
-            if (this.cards[0] == undefined) {
+            if (this.cards[0] == undefined || this.cards.length == 0) {
                 rej("Game over.");
             }
 
@@ -193,7 +193,7 @@ class Deck {
 }
 
 class Player {
-    constructor(n, c, w, tl, tr, pc, interact) {
+    constructor(n, c, w, tl, tr, pc, interact, pi) {
         this.name = n;
         this.colour = c;
         this.wins = w;
@@ -205,6 +205,7 @@ class Player {
         this.isDealer = false;
         this.playerCount = pc;
         this.interact = interact;
+        this.playerIndex = pi;
     }
 
     // Returns push so you get new length of array.
@@ -228,11 +229,7 @@ class Player {
         await this.interact(card, this.getCardCount() - 1, player, requestedIndex);
     }
 
-    queenTrade = async (index, player1, player2) => {
-
-        if (index == undefined || player1 == undefined || player2 == undefined) {
-            console.log(index, player1, player2);
-        }
+    queenTrade = async (index, player2) => {
 
         // give the card to the other player.
         this.give(index, player2);
@@ -245,8 +242,6 @@ class Player {
 
             if (count == 0) continue;
 
-            console.log(count, player2.getCards());
-
             const cardSelected = Math.floor(Math.random() * (count - 1));
 
             await this.take(cardSelected, player2);
@@ -254,9 +249,14 @@ class Player {
         }
     }
 
-    queenOfSpadesTrade = (card, player1, player2) => {
+    // take half of the other players hand.
+    queenOfSpadesTrade = (card, player2Trade2) => {
         // trade for half of the other players hand or (n - 1) / 2 cards (where n is
         // total number of cards in their hand).
+    }
+
+    aceOfSpadesTrade = (card, player2Trade2) => {
+
     }
 
     // otherPlayer references a player object.
@@ -323,7 +323,8 @@ class PlayerManager {
                 index + 1,
                 index - 1,
                 this.players.length,
-                this.interact
+                this.interact,
+                index
             );
 
             if (index === this.data.length - 1) player.setToLeft(0);
@@ -334,30 +335,36 @@ class PlayerManager {
 
         // Determine the first dealer.
         const dealerIndex = Math.floor(Math.random() * (this.players.length - 1));
-        this.dealer = this.players[dealerIndex];
+        this.dealer = {
+            player: this.players[dealerIndex],
+            turnsAsDealer: 0,
+            index: dealerIndex,
+        };
         this.turn = dealerIndex;
+
+        console.log(this.dealer);
     }
 
     maybeSwitchDealer(player) {
         const wantsToStopDealing = Math.random() > 0.5;
 
         if (wantsToStopDealing) {
-            this.switchDealer(player);
+            this.switchDealer(player, player.playerIndex);
         }
     }
 
     switchDealer(player) {
-        this.dealer.setIsDealer(false);
+        console.warn('SWITCHING DEALER');
+        console.log(player);
+        this.dealer.player.setIsDealer(false);
         player.setIsDealer(true);
-        this.dealer = player;
+        this.dealer.player = player;
+        this.dealer.index = player.playerIndex;
+        this.dealer.turnsAsDealer = 0;
     }
 
-    // start interactions with other players based on card received.
+    // start interactions with other players based on card received when applicable.
     interact = async (card, index, player, requestedIndex) => {
-
-        if (card == undefined || index == undefined || player == undefined || requestedIndex == undefined) {
-            console.log(card, index, player, requestedIndex);
-        }
 
         const randomFloat = Math.random();
         const trade = randomFloat > 0.5;
@@ -371,6 +378,11 @@ class PlayerManager {
             case 'Ace':
                 // place on table etc. using Table();
                 isSpades ? true : false;
+                break;
+            case 'Jack':
+                // politely request to become dealer.
+                if (this.dealer.player == undefined) return;
+                this.maybeSwitchDealer(player);
                 break;
             default:
                 // Log information about the interact() use.
@@ -421,17 +433,14 @@ class Game {
             const player = this.playerManager.getPlayers()[this.playerManager.getTurn()];
             const response = await this.deck.deal(player);
 
-            if (response != 'self') this.playerManager.nextTurn();
-
-            if (response != 'self') this.playerManager.addDealerTurn();
+            if (response != 'self') {
+                this.playerManager.nextTurn();
+                this.playerManager.addDealerTurn();
+            }
 
             if (this.playerManager.getDealerTurns() > 4) {
-
-                // set the 
-
-
                 this.playerManager.switchDealer(
-                    this.playerManager.getPlayers()[]
+                    this.playerManager.getPlayers()[this.playerManager.dealer.index++]
                 );
             }
 
@@ -465,14 +474,25 @@ class Game {
 
             let grapples = 0;
 
+            console.log(cards);
+            if (cards.length == 0) return;
+
             cards.forEach(card => {
+
+                // sometimes very rarely a card becomes undefined.
+                // this is because of a off-by-one error most likely! I will get lookin.
+                if (card == undefined) {
+                    console.error(undefined, card);
+                    return;
+                };
+
                 grapples += card.value;
             });
 
             if (grapples > mostGrapples) winner = player;
         });
 
-        console.log(winner);
+        console.log('Winner:', winner);
 
         if (this.timesRan < this.times) this.reset();
     }
@@ -482,11 +502,12 @@ class Game {
         this.startRunning();
     }
 
-
-
 }
 
 // Game runs automatically with 4 players X times.
+
+// It seems that at this point the last player to go on the first go-around the circle will always end up with 0 cards.
+// Interesting.
 new Game(
     [
         { name: "PlayerOne", colour: "blue", wins: 15 },
