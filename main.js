@@ -1,18 +1,7 @@
 /*
     𝑃(𝐴 𝑜𝑟 𝐵) = 𝑃(𝐴) + 𝑃(𝐵) − 𝑃(𝐴 𝑎𝑛𝑑 𝐵)
     𝑃(𝐴|𝐵) = 𝑃(𝐴 𝑎𝑛𝑑 𝐵) 𝑃(𝐵)
-*/
 
-class Card {
-    constructor(t, n, v, i) {
-        this.type = t;
-        this.name = n;
-        this.value = v;
-        this.index = i;
-    }
-}
-
-/*
 switch (this.type) {
     case 'spades':
         break;
@@ -61,6 +50,15 @@ switch (this.name) {
 }
 
 */
+
+class Card {
+    constructor(t, n, v, i) {
+        this.type = t;
+        this.name = n;
+        this.value = v;
+        this.index = i;
+    }
+}
 
 class Deck {
     constructor() {
@@ -247,10 +245,6 @@ class Player {
         // total number of cards in their hand).
     }
 
-    aceOfSpadesTrade = (card, player2Trade2) => {
-
-    }
-
     // otherPlayer references a player object.
     take = async (index, otherPlayer) => new Promise((res, rej) => {
         // take a card from a player at a certain index
@@ -298,6 +292,7 @@ class PlayerManager {
             player: undefined,
             turnsAsDealer: 0, // essentially cards dealt
             index: 0,
+            dealDirection: 0, // clockwise, 1 is counter-clockwise.
         };
         this.turn = 0; // Index of the player (in this.players) whos turn it is.
 
@@ -344,12 +339,15 @@ class PlayerManager {
     }
 
     switchDealer(player) {
-        console.error('Switching dealer to:', player.playerIndex);
         this.dealer.player.setIsDealer(false);
         player.setIsDealer(true);
         this.dealer.player = player;
         this.dealer.index = player.playerIndex;
         this.dealer.turnsAsDealer = 0;
+    }
+
+    updateDealDirection(direction) {
+        this.dealer = { ...this.dealer, direction};
     }
 
     // start interactions with other players based on card received when applicable.
@@ -366,7 +364,9 @@ class PlayerManager {
                 break;
             case 'Ace':
                 if (isSpades) {
+                    console.log(player.getCards());
                     player.removeCard(index);
+                    console.log(player.getCards());
                     this.maybeSwitchDealer(player); // use maybe because maybe the player just wants to discard the ace.
                 }
                 break;
@@ -380,8 +380,15 @@ class PlayerManager {
     }
 
     nextTurn() {
-        if (this.turn + 1 == this.getPlayers().length) return this.turn = 0;
-        this.turn++;
+
+        if (!this.dealer.direction) {
+            if (this.turn + 1 == this.getPlayers().length) return this.turn = 0;
+            this.turn++;
+        } else if (this.dealer.direction) {
+            if (this.turn - 1 < 0) return this.turn = this.getPlayers().length - 1;
+            this.turn--;
+        }
+
     }
 
     checkWinner() {
@@ -391,25 +398,11 @@ class PlayerManager {
         this.getPlayers().forEach(player => {
 
             const cards = player.getCards();
-            if (cards.length == 0) {
-                console.warn('Player with no cards:', player);
-                return;
-            };
+            if (cards.length == 0) return;
 
             let grapples = 0;
 
-            cards.forEach(card => {
-
-                // sometimes very rarely a card becomes undefined.
-                // this is because of a off-by-one error most likely! I will get lookin.
-                if (card == undefined) {
-                    console.error(undefined, player, card);
-                    return;
-                };
-
-                grapples += card.value;
-            });
-
+            cards.forEach(card => grapples += card.value);
             if (grapples > mostGrapples) winner = player;
         });
 
@@ -431,8 +424,6 @@ class Game {
         this.playerManager = new PlayerManager(data); // In order from dealer to left of dealer all the way around the circle.
         this.deck = new Deck(); // the deck of cards.
         // this.monitor = new Monitor(); // Logging
-
-        this.startRunning();
     }
 
     init() {
@@ -443,26 +434,63 @@ class Game {
 
     async run() {
         while (this.deck.getCardCount() > 0 && this.running) {
-            // this.monitor.start();
-
             // dealer deals a card to the proper player (the player whos turn it is)
             // that player decides what to do with the card, or Deck() automatically
             // deals with the card.
 
             const player = this.playerManager.getPlayers()[this.playerManager.getTurn()];
-            const response = await this.deck.deal(player);
+            const response = {m:undefined};
 
-            if (response != 'self') {
+            if (this.playerManager.dealer.index == this.playerManager.turn) {
+                console.log('it is the dealers turn.');
+
+                // if it is the dealers turn the dealer has the option to...
+                // look at the card,
+                // then decide whether to give it to themself and choose the direction of deal,
+                // or deal it to the next player in the circle.
+                const randomNumber = Math.random();
+                const lookAtCard = randomNumber > 0.5;
+
+                if (lookAtCard) {
+
+                    if (randomNumber < 0.25) {
+                        console.error('HERE', this.playerManager.getPlayers()[player.getToLeft()]);
+                        response.m = await this.deck.deal(this.playerManager.getPlayers()[player.getToLeft()]);
+                        this.playerManager.updateDealDirection(1);
+                    }
+
+                    if (0.25 <= randomNumber && randomNumber <= 0.75) {
+                        response.m = await this.deck.deal(player);
+                        this.playerManager.updateDealDirection(randomNumber > 0.5 ? 0 : 1);
+                    }
+
+                    if (randomNumber > 0.75) {
+                        console.error('HERE', this.playerManager.getPlayers()[player.getToRight()]);
+                        response.m = await this.deck.deal(this.playerManager.getPlayers()[player.getToRight()]);
+                        this.playerManager.updateDealDirection(1);
+                    }
+
+                }
+
+            } else {
+                response.m = await this.deck.deal(player);
+            }
+
+            if (response.m != 'self') {
                 this.playerManager.nextTurn();
                 this.playerManager.addDealerTurn();
             }
 
-            if (this.playerManager.getDealerTurns() > 16) this.playerManager.switchDealer(
-                this.playerManager.getPlayers()[this.playerManager.dealer.index++]
-            );
+            // check for out of range.
+            let newIndex = 1;
+            let pl = this.playerManager.players.length;
+            let di = this.playerManager.dealer.index;
+            if (di + newIndex == pl) newIndex = newIndex - pl;
 
-            // this.monitor.end();
+            let newDealer = this.playerManager.getPlayers()[di + newIndex];
+            if (this.playerManager.getDealerTurns() > 16) this.playerManager.switchDealer(newDealer);
         }
+
         this.stopRunning();
     }
 
@@ -474,7 +502,7 @@ class Game {
 
     stopRunning() {
         this.running = false;
-        console.warn('Winner:', this.playerManager.checkWinner());
+        const winner = this.playerManager.checkWinner(); console.warn('Winner:', winner);
         if (this.timesRan < this.times) this.reset();
     }
 
@@ -485,10 +513,6 @@ class Game {
 
 }
 
-// Game runs automatically with 4 players X times.
-
-// It seems that at this point the last player to go on the first go-around the circle will always end up with 0 cards.
-// Interesting.
 new Game(
     [
         { name: "PlayerOne", colour: "blue", wins: 15 },
@@ -497,77 +521,10 @@ new Game(
         { name: "PlayerFour", colour: "purple", wins: 20 }
     ],
     4 // Amount of simulated games to run.
-);
+).startRunning();
 
-class Monitor {
-    constructor() {
+// Integrate into nodejs project so that there is access to file 
+// system and data can be recorded usefully for display after
+// a request is made for some data.
 
-        // the states saved at the beginning and end of the most recent cycle.
-        this.currentStart = undefined;
-        this.currentEnd = undefined;
-
-    }
-
-    start() {
-
-    }
-
-    end() {
-
-    }
-
-    compare() {
-
-    }
-
-}
-
-// Manager class of the cards with special abilities.
-/*
-class Table {
-    constructor() {
-        this.aceOfSpades = {
-            onTable: false,
-            playerOwner: undefined, // reference to player object
-            card: undefined,
-            redeemable: true,
-            discarded: false,
-            turnsLeft: 3
-        }
-        this.copy = this.aceOfSpades.copy();
-    }
-
-    placeOnTable(playerOwner, card) {
-
-        this.aceOfSpades = {
-            onTable: true,
-            playerOwner,
-            card
-        }
-
-    }
-
-    // Place in discard pile.
-    removeFromTable() {
-        this.aceOfSpades = this.copy;
-    }
-
-    manageAceOfSpades(player, card) {
-        if (!this.aceOfSpades.redeemable) return false;
-        if (!this.aceOfSpades.onTable) return false;
-        if (playerOwner.name != player.name) return false;
-
-        // check the turns
-        //remove a turn
-
-        if (this.aceOfSpades.turnsLeft - 1 < 0) {
-            this.removeFromTable(player, card)    
-            return false;
-        }
-        this.aceOfSpades.turnsLeft--;
-    }
-}
-*/
-
-
-// run tests on game with lots of stuff and things!
+// the game could have call to start from here and then use result as all the collected data from the game.
