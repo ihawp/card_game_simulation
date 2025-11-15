@@ -191,19 +191,19 @@ class Player {
     }
 
     // Take half of the other players hand.
-    queenOfSpadesTrade = async (card, player2) => {
+    queenOfSpadesTrade = async (index, player2) => {
         // Trade for half of the other players hand or (n / 2) - 1 cards (where n is
         // total number of cards in their hand).
         // give the card to the other player.
         this.give(index, player2);
 
         const count = player2.getCardCount();
-
         const cc = (count / 2) - 1;
         const cards = cc > 3 ? cc : 3; 
 
         // Select three random cards to take from the other player.
-        for (let i = 0; i < count < 3 ? count : cards ; i++) {
+        // or (count/2)-1
+        for (let i = 0; i < (count < 3 ? count : cards) ; i++) {
 
             // Select a random number based on the amount of cards they have.
             const count = player2.getCardCount();
@@ -324,12 +324,12 @@ class PlayerManager {
 
         const randomFloat = Math.random();
         const trade = randomFloat > 0.5;
-        const isSpades = card.type == 'Spades';
+        const isSpades = card.type == 'spades';
         const player2 = this.players[requestedIndex];
 
         switch (card.name) {
             case 'Queen':
-                isSpades ? await player.queenOfSpadesTrade() : trade ? await player.queenTrade(index, player, player2) : null;
+                isSpades ? await player.queenOfSpadesTrade(index, player2) : trade ? await player.queenTrade(index, player, player2) : null;
                 break;
             case 'Ace':
                 if (isSpades) {
@@ -442,7 +442,6 @@ class GameManager {
                     const card = this.deck.peekTopCard();
 
                     if (card.value < 1) {
-                        console.log(card.value);
                         sway = 0.5; // Don't keep the card.
                     }
                 }
