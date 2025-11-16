@@ -263,6 +263,7 @@ class PlayerManager {
             dealDirection: 0, // clockwise, 1 is counter-clockwise.
         };
         this.turn = 0; // Index of the player (in this.players) whos turn it is.
+        this.winner = undefined;
 
         this.init();
     }
@@ -373,6 +374,7 @@ class PlayerManager {
             if (grapples > mostGrapples) winner = player;
         });
 
+        this.winner = winner;
         console.warn('Winner:', winner, '\n', 'Times as Dealer:', winner.timesAsDealer);
     }
 
@@ -386,14 +388,135 @@ class Monitor {
     constructor(pm, d) {
         this.playerManager = pm;
         this.deck = d;
+    
+        this.originalDeckCopy = { ...d }
+        this.originalPlayerManager = { ...pm };
+
+        this.allStates = [];
+        this.current = {};
     }
 
-    checkState() {
-        // check and record the current state of the game.
-        // probabilities and all.
+    nCr(n = this.deck.cards.length, r = 1) {
+        // this.deck.cards.length
+        // this.playerManager.turn
+        // this.playerManager.winner
+        /*
 
+                 n!
+            -----------
+            r! (n - r)!
 
+            nF  = n!
+            dcF = (n - r)!
+            rF = r!
 
+                  nF
+            -------------
+            ( rF )( dcF )
+
+            Where nF should have its values divided by either rF or dcF depening on which has more matching
+            values in its factorial array, and where those values multiply to a larger value than rF/dcF (depening
+            on what was chosen).
+
+        */
+       /*
+
+            Probability of 2 and Joker are for getting a second card is 100%.
+            P(B|A);
+
+            The probability of the next card being a joker is...?
+
+            Do I have to check for the total count of jokers in the deck?
+
+       */
+        const nF = this.getFactorialValues(n); // n!
+        const dcF = [ ...nF ].splice(r, nF.length); // (n-r)!
+        const rF = this.getFactorialValues(r); // r!
+        const nFrFDivide = this.divideFactorials(nF, rF);
+        const nFdcFDivide = this.divideFactorials(nF, dcF);
+
+        console.log(nFrFDivide, nFdcFDivide);
+
+        if (nFdcFDivide.length < nFrFDivide.length) {
+            console.log('duh');
+        } else {
+            console.log('duh oh.');
+        }
+
+        /*
+
+            Top value and length.
+            If topValue == length then it is 'full' factorial.
+
+                // Full factorials could be more easily compared, is the top value greater then this other ones top value and thats it.
+
+            else it is not a 'full' factorial and should be treated differently.
+    
+                // While these should be looped in full to determine the total value.
+
+            Top value is the highest value in the current array.
+            
+            Note: I know that these values are 'full' factorials, that is
+                  they have a highest value all the way down to one, but I want
+                  my code to be reusable for cases where the array is like [3,2].
+
+        */
+
+    }
+
+    getFactorialValues(num) {
+        const values = [];
+        while (num > 0) {
+            values.push(num);
+            num--;
+        }
+        return values;
+    }
+
+    getFinalValue(fA) {
+        let value = fA[0];
+        for (let i = 1; i < fA.length; i++) {
+            value *= fA[i];
+        }
+        return value;
+    }
+
+    // fA = Factorial Array
+    // use getFactorialValues() to create 'Factorial Array'
+    divideFactorials(fA1, fA2) {
+        if (fA1[0] != fA1.length || fA2[0] != fA2.length || fA2[0] > fA1[0]) {
+            // cancel values between two arrays containing values.
+            // top is fA1, bottom is fA2.
+
+            console.error('not a full factorial', fA1, fA2);
+            return false;
+        }
+        console.log(fA1, fA2);
+        const fA1Copy = [ ...fA1 ];
+        fA1Copy.splice(fA1[0] - fA2[0], fA2.length);
+        return fA1Copy;
+    }
+
+    // ^^^ refer to divideFactorials() for documentation ^^^
+    multiplyFactorials(fA1, fA2) {
+
+    }
+    
+    calculateFactorial(fA) {
+        if (fA.length < 0) {
+            return 'no negative integers';
+        }
+        let total = 0;
+        for (let i = factorial; i > 0; i--) {
+            if (total == 0) {
+                total = i;
+            }
+            total = total * i;
+        }
+        return total;
+    }
+
+    after() {
 
     }
 }
@@ -403,18 +526,16 @@ class GameManager {
         this.data = data;
         this.times = times;
         this.timesRan = 0;
+        this.gameOver = false;
 
-        this.playerManager = new PlayerManager(data); // In order from dealer to left of dealer all the way around the circle.
-        this.deck = new Deck(); // the deck of cards.
-        this.monitor = new Monitor(this.playerManager, this.deck); // Logging
-
-        this.startRunning();
+        this.init();
     }
 
     init() {
         this.playerManager = new PlayerManager(this.data);
         this.deck = new Deck();
-        // this.monitor = new Monitor();
+        this.monitor = new Monitor(this.playerManager, this.deck);
+        this.startRunning();
     }
 
     async run() {
@@ -422,6 +543,7 @@ class GameManager {
             // dealer deals a card to the proper player (the player whos turn it is)
             // that player decides what to do with the card, or Deck() automatically
             // deals with the card.
+            this.monitor.nCr();
 
             const player = this.playerManager.getPlayers()[this.playerManager.getTurn()];
             const response = {m:undefined};
@@ -480,6 +602,7 @@ class GameManager {
 
             let newDealer = this.playerManager.getPlayers()[di + newIndex];
             if (this.playerManager.getDealerTurns() > 16) this.playerManager.switchDealer(newDealer);
+
         }
 
         this.stopRunning();
@@ -510,9 +633,7 @@ new GameManager(
     [
         { name: "PlayerOne", colour: "blue", wins: 15 },
         { name: "PlayerTwo", colour: "red", wins: 12 },
-        { name: "PlayerThree", colour: "green", wins: 18 },
-        { name: "PlayerFour", colour: "purple", wins: 20 },
-        { name: "PlayerFive", colour: "yellow", wins: 27 }
+        { name: "PlayerThree", colour: "green", wins: 18 }
     ],
-    10 // Amount of simulated games to run.
+    1 // Amount of simulated games to run.
 );
