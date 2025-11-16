@@ -406,20 +406,19 @@ class Monitor {
             -----------
             r! (n - r)!
 
-            nF  = n!
-            dcF = (n - r)!
-            rF = r!
-
                   nF
             -------------
             ( rF )( dcF )
+
+            nF  = n!
+            dcF = (n - r)!
+            rF = r!
 
             Where nF should have its values divided by either rF or dcF depening on which has more matching
             values in its factorial array, and where those values multiply to a larger value than rF/dcF (depening
             on what was chosen).
 
-        */
-       /*
+            -----------------------------------------------------------------------------
 
             Probability of 2 and Joker are for getting a second card is 100%.
             P(B|A);
@@ -430,38 +429,29 @@ class Monitor {
 
        */
         const nF = this.getFactorialValues(n); // n!
+
         const dcF = [ ...nF ].splice(r, nF.length); // (n-r)!
-        const rF = this.getFactorialValues(r); // r!
-        const nFrFDivide = this.divideFactorials(nF, rF);
         const nFdcFDivide = this.divideFactorials(nF, dcF);
 
-        console.log(nFrFDivide, nFdcFDivide);
+        // nF is top value nF / rF, check for the cancellations between the arrays, the returned array is the left over values on top for use as nF in next step of equation. If, the length of this array 
+        // is less then the dcFDivide array then this part should be determined canceled and dcF should be used on the current bottom value in multiplyFactorial.
+        const rF = this.getFactorialValues(r); // r!
+        const nFrFDivide = this.divideFactorials(nF, rF);
 
-        if (nFdcFDivide.length < nFrFDivide.length) {
-            console.log('duh');
-        } else {
-            console.log('duh oh.');
-        }
+        console.log(rF, nFrFDivide);
+        console.log(dcF, nFdcFDivide);
 
-        /*
+        const top = nFdcFDivide.length <= nFrFDivide.length ? nFdcFDivide : nFrFDivide;
+        const bottom = nFdcFDivide.length >= nFrFDivide.length ? dcF : rF;
 
-            Top value and length.
-            If topValue == length then it is 'full' factorial.
+        // use the nFdcFDivide values...because it makes the most possible cancellations with the bottom array.
+        // so the nFrFDivide portion of the equation now does not exist, it has been cancelled out, and the factorial values from rF are what multiply should be divided by (once rF is multipled).
 
-                // Full factorials could be more easily compared, is the top value greater then this other ones top value and thats it.
-
-            else it is not a 'full' factorial and should be treated differently.
-    
-                // While these should be looped in full to determine the total value.
-
-            Top value is the highest value in the current array.
-            
-            Note: I know that these values are 'full' factorials, that is
-                  they have a highest value all the way down to one, but I want
-                  my code to be reusable for cases where the array is like [3,2].
-
-        */
-
+        const tm = this.multiplyFactorial(top);
+        const bm = this.multiplyFactorial(bottom);
+        const oddsString = `${tm} / ${bm}`;
+        const odds = tm / bm;
+        console.log(oddsString, odds);
     }
 
     getFactorialValues(num) {
@@ -473,52 +463,25 @@ class Monitor {
         return values;
     }
 
-    getFinalValue(fA) {
-        let value = fA[0];
-        for (let i = 1; i < fA.length; i++) {
-            value *= fA[i];
-        }
-        return value;
-    }
-
-    // fA = Factorial Array
-    // use getFactorialValues() to create 'Factorial Array'
     divideFactorials(fA1, fA2) {
         if (fA1[0] != fA1.length || fA2[0] != fA2.length || fA2[0] > fA1[0]) {
-            // cancel values between two arrays containing values.
-            // top is fA1, bottom is fA2.
-
             console.error('not a full factorial', fA1, fA2);
             return false;
         }
-        console.log(fA1, fA2);
         const fA1Copy = [ ...fA1 ];
         fA1Copy.splice(fA1[0] - fA2[0], fA2.length);
         return fA1Copy;
     }
 
     // ^^^ refer to divideFactorials() for documentation ^^^
-    multiplyFactorials(fA1, fA2) {
-
+    multiplyFactorial(fA) {
+        let value = fA[0];
+        for (let i = 1; i < fA.length; i++) {
+            value *= fA[i];
+        }
+        return value;
     }
     
-    calculateFactorial(fA) {
-        if (fA.length < 0) {
-            return 'no negative integers';
-        }
-        let total = 0;
-        for (let i = factorial; i > 0; i--) {
-            if (total == 0) {
-                total = i;
-            }
-            total = total * i;
-        }
-        return total;
-    }
-
-    after() {
-
-    }
 }
 
 class GameManager {
