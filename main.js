@@ -1,3 +1,7 @@
+import fsync from 'node:fs';
+import fs from 'node:fs/promises';
+import crypto from 'node:crypto';
+
 /*
     𝑃(𝐴 𝑜𝑟 𝐵) = 𝑃(𝐴) + 𝑃(𝐵) − 𝑃(𝐴 𝑎𝑛𝑑 𝐵)
     𝑃(𝐴|𝐵) = 𝑃(𝐴 𝑎𝑛𝑑 𝐵) 𝑃(𝐵)
@@ -28,8 +32,8 @@ class Deck {
             { type: "spades", name: "9", value: 9 },
             { type: "spades", name: "10", value: -10 },
             { type: "spades", name: "Jack", value: 3 },
-            { type: "spades", name: "Queen", value: 7 },
-            { type: "spades", name: "King", value: 7 },
+            { type: "spades", name: "Queen", value: -10 },
+            { type: "spades", name: "King", value: -10 },
             { type: "hearts", name: "Ace", value: 1 },
             { type: "hearts", name: "2", value: 2 },
             { type: "hearts", name: "3", value: 3 },
@@ -41,8 +45,8 @@ class Deck {
             { type: "hearts", name: "9", value: 9 },
             { type: "hearts", name: "10", value: -10 },
             { type: "hearts", name: "Jack", value: 3 },
-            { type: "hearts", name: "Queen", value: 7 },
-            { type: "hearts", name: "King", value: 7 },
+            { type: "hearts", name: "Queen", value: -10 },
+            { type: "hearts", name: "King", value: -10 },
             { type: "diamonds", name: "Ace", value: 1 },
             { type: "diamonds", name: "2", value: 2 },
             { type: "diamonds", name: "3", value: 3 },
@@ -54,8 +58,8 @@ class Deck {
             { type: "diamonds", name: "9", value: 9 },
             { type: "diamonds", name: "10", value: -10 },
             { type: "diamonds", name: "Jack", value: 3 },
-            { type: "diamonds", name: "Queen", value: 7 },
-            { type: "diamonds", name: "King", value: 7 },
+            { type: "diamonds", name: "Queen", value: -10 },
+            { type: "diamonds", name: "King", value: -10 },
             { type: "clubs", name: "Ace", value: 1 },
             { type: "clubs", name: "2", value: 2 },
             { type: "clubs", name: "3", value: 3 },
@@ -67,8 +71,8 @@ class Deck {
             { type: "clubs", name: "9", value: 9 },
             { type: "clubs", name: "10", value: -10 },
             { type: "clubs", name: "Jack", value: 3 },
-            { type: "clubs", name: "Queen", value: 7 },
-            { type: "clubs", name: "King", value: 7 },
+            { type: "clubs", name: "Queen", value: -10 },
+            { type: "clubs", name: "King", value: -10 },
             { type: "joker", name: "Joker", value: -2 },
             { type: "joker", name: "Joker", value: -2 }
         ];
@@ -143,6 +147,7 @@ class Player {
         this.colour = c;
         this.wins = w;
         this.cards = [];
+        this.id = crypto.randomUUID(); // UUID v4.
 
         this.toLeft = tl; // integer 
         this.toRight = tr; // integer of player index in circle..? right!? going clockwise.
@@ -166,9 +171,19 @@ class Player {
         return this.cards.splice(index, 1); // remove 1 card at specified index.
     }
 
+    getRandomIndex() {
+        return Math.floor(Math.random() * this.playerCount + 1);
+    }
+
+    determineRequestedIndex() {
+        const requestedIndex = this.getRandomIndex();
+        if (requestedIndex !== this.playerIndex) return requestedIndex;
+        return Math.random() > 0.5 ? this.getToLeft() : this.getToRight();
+    }
+
     // Decide what to do with the card you have been dealt.
     async decide(card, player) {
-        const requestedIndex = Math.floor(Math.random() * this.playerCount);
+        const requestedIndex = this.determineRequestedIndex();
         await this.interact(card, this.getCardCount() - 1, player, requestedIndex);
     }
 
@@ -199,7 +214,7 @@ class Player {
 
         const count = player2.getCardCount();
         const cc = (count / 2) - 1;
-        const cards = cc > 3 ? cc : 3; 
+        const cards = cc > 3 ? cc : 3;
 
         // Select three random cards to take from the other player.
         // or (count/2)-1
@@ -260,7 +275,7 @@ class PlayerManager {
             player: undefined,
             turnsAsDealer: 0, // essentially cards dealt
             index: 0,
-            dealDirection: 0, // clockwise, 1 is counter-clockwise.
+            direction: 0, // clockwise, 1 is counter-clockwise.
         };
         this.turn = 0; // Index of the player (in this.players) whos turn it is.
         this.winner = undefined;
@@ -302,12 +317,15 @@ class PlayerManager {
     maybeSwitchDealer(player) {
         const wantsToStopDealing = Math.random() > 0.5;
 
-        if (wantsToStopDealing) {
-            this.switchDealer(player, player.playerIndex);
+        if (this.dealer.player.id == player.id) return;
+
+        if (wantsToStopDealing || player.id != this.dealer.player.id) {
+            this.switchDealer(player);
         }
     }
 
     switchDealer(player) {
+        if (this.dealer.player.id == player.id) return;
         this.dealer.player.setIsDealer(false);
         player.setIsDealer(true);
         player.addTimeAsDealer();
@@ -317,7 +335,7 @@ class PlayerManager {
     }
 
     updateDealDirection(direction) {
-        this.dealer = { ...this.dealer, direction};
+        this.dealer = { ...this.dealer, direction };
     }
 
     // start interactions with other players based on card received when applicable.
@@ -334,7 +352,7 @@ class PlayerManager {
                 break;
             case 'Ace':
                 if (isSpades) {
-                    player.removeCard(index);
+                    player.removeCard(index); // discard (no one can have the ace of spades).
                     this.maybeSwitchDealer(player); // use maybe because maybe the player just wants to discard the ace.
                 }
                 break;
@@ -344,7 +362,6 @@ class PlayerManager {
             default:
                 break;
         }
-        // Log information about the interact() use.
     }
 
     nextTurn() {
@@ -364,18 +381,14 @@ class PlayerManager {
         let winner = undefined;
 
         this.getPlayers().forEach(player => {
-
             const cards = player.getCards();
             if (cards.length == 0) return;
-
             let grapples = 0;
-
             cards.forEach(card => grapples += card.value);
-            if (grapples > mostGrapples) winner = player;
+            if (grapples > mostGrapples) this.winner = player;
         });
 
-        this.winner = winner;
-        console.warn('Winner:', winner, '\n', 'Times as Dealer:', winner.timesAsDealer);
+        console.warn('Winner:', this.winner.id, '\n', 'Times as Dealer:', this.winner.timesAsDealer);
     }
 
     addDealerTurn() { this.dealer.turnsAsDealer++; }
@@ -384,6 +397,43 @@ class PlayerManager {
     getTurn = () => { return this.turn; }
 }
 
+class Monitor2 {
+    constructor(pm, d) {
+        this.playerManager = pm;
+        this.deck = d;
+        this.log = ``;
+    }
+
+    log(value) {
+        this.log += `${value}\n`;
+        return this.log;
+    }
+
+    monitor() {
+
+        // Who has the best odds of winning in the current game state?
+
+        // Determine who has the most "Grapples." Does that tie into their odds of winning?
+
+    }
+
+    // https://www.geeksforgeeks.org/dsa/program-calculate-value-ncr/
+    factorial(num) {
+        if (num < 0) return 0;
+        if (num <= 1) return 1;
+        let result = 1;
+        for (let i = 2; i <= num; i++) result *= i;
+        return result;
+    }
+
+    // call with no arguments for current odds of getting 1 card.
+    nCr(n = this.deck.cards.length, r = 1) {
+        if (r < 0 || r > n) return 0;
+        return Math.ceil(this.factorial(n) / (this.factorial(r) * this.factorial(n - r)));
+    }
+}
+
+/*
 class Monitor {
     constructor(pm, d) {
         this.playerManager = pm;
@@ -396,38 +446,28 @@ class Monitor {
         this.current = {};
     }
 
+    // total crap, way overengineered.
     nCr(n = this.deck.cards.length, r = 1) {
         // this.deck.cards.length
         // this.playerManager.turn
         // this.playerManager.winner
-        /*
 
-                 n!
-            -----------
-            r! (n - r)!
+        //         n!
+        //    -----------
+        //    r! (n - r)!
 
-                  nF
-            -------------
-            ( rF )( dcF )
+        //          nF
+        //    -------------
+        //    ( rF )( dcF )
 
-            nF  = n!
-            dcF = (n - r)!
-            rF = r!
+        //    nF  = n!
+        //    dcF = (n - r)!
+        //    rF = r!
 
-            Where nF should have its values divided by either rF or dcF depening on which has more matching
-            values in its factorial array, and where those values multiply to a larger value than rF/dcF (depening
-            on what was chosen).
+        //    Where nF should have its values divided by either rF or dcF depening on which has more matching
+        //    values in its factorial array, and where those values multiply to a larger value than rF/dcF (depening
+        //    on what was chosen).
 
-            -----------------------------------------------------------------------------
-
-            Probability of 2 and Joker are for getting a second card is 100%.
-            P(B|A);
-
-            The probability of the next card being a joker is...?
-
-            Do I have to check for the total count of jokers in the deck?
-
-       */
         const nF = this.getFactorialValues(n); // n!
 
         const dcF = [ ...nF ].splice(r, nF.length); // (n-r)!
@@ -437,9 +477,6 @@ class Monitor {
         // is less then the dcFDivide array then this part should be determined canceled and dcF should be used on the current bottom value in multiplyFactorial.
         const rF = this.getFactorialValues(r); // r!
         const nFrFDivide = this.divideFactorials(nF, rF);
-
-        console.log(rF, nFrFDivide);
-        console.log(dcF, nFdcFDivide);
 
         const top = nFdcFDivide.length <= nFrFDivide.length ? nFdcFDivide : nFrFDivide;
         const bottom = nFdcFDivide.length >= nFrFDivide.length ? dcF : rF;
@@ -451,7 +488,6 @@ class Monitor {
         const bm = this.multiplyFactorial(bottom);
         const oddsString = `${tm} / ${bm}`;
         const odds = tm / bm;
-        console.log(oddsString, odds);
     }
 
     getFactorialValues(num) {
@@ -483,6 +519,7 @@ class Monitor {
     }
     
 }
+*/
 
 class GameManager {
     constructor(data, times) {
@@ -497,7 +534,7 @@ class GameManager {
     init() {
         this.playerManager = new PlayerManager(this.data);
         this.deck = new Deck();
-        this.monitor = new Monitor(this.playerManager, this.deck);
+        this.monitor = new Monitor2(this.playerManager, this.deck);
         this.startRunning();
     }
 
@@ -506,7 +543,7 @@ class GameManager {
             // dealer deals a card to the proper player (the player whos turn it is)
             // that player decides what to do with the card, or Deck() automatically
             // deals with the card.
-            this.monitor.nCr();
+            this.monitor.monitor();
 
             const player = this.playerManager.getPlayers()[this.playerManager.getTurn()];
             const response = {m:undefined};
@@ -525,10 +562,7 @@ class GameManager {
                 if (lookAtCard) {
                     sway = 0.15;
                     const card = this.deck.peekTopCard();
-
-                    if (card.value < 1) {
-                        sway = 0.5; // Don't keep the card.
-                    }
+                    if (card.value < 1) sway = 0.5; // Don't keep the card.
                 }
 
                 if (randomNumber < sway) {
@@ -564,7 +598,7 @@ class GameManager {
             if (di + newIndex == pl) newIndex = newIndex - pl;
 
             let newDealer = this.playerManager.getPlayers()[di + newIndex];
-            if (this.playerManager.getDealerTurns() > 16) this.playerManager.switchDealer(newDealer);
+            if (this.playerManager.getDealerTurns() == 8) this.playerManager.switchDealer(newDealer);
 
         }
 

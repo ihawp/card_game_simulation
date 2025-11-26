@@ -4,7 +4,7 @@
   "description": "<sup>Last Updated: November 10, 2025.</sup>",
   "main": "main.js",
   "scripts": {
-    "start": "npm start",
+    "start": "node main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
