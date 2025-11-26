@@ -1,7 +1,3 @@
-import fsync from 'node:fs';
-import fs from 'node:fs/promises';
-import crypto from 'node:crypto';
-
 /*
     𝑃(𝐴 𝑜𝑟 𝐵) = 𝑃(𝐴) + 𝑃(𝐵) − 𝑃(𝐴 𝑎𝑛𝑑 𝐵)
     𝑃(𝐴|𝐵) = 𝑃(𝐴 𝑎𝑛𝑑 𝐵) 𝑃(𝐵)
@@ -19,9 +15,10 @@ class Card {
 }
 
 class Deck {
-    constructor() {
+    constructor(l) {
+        this.logger = l;
         this.data = [
-            { type: "spades", name: "Ace", value: 1 },
+            { type: "spades", name: "Ace", value: 0 },
             { type: "spades", name: "2", value: 2 },
             { type: "spades", name: "3", value: 3 },
             { type: "spades", name: "4", value: 4 },
@@ -106,7 +103,7 @@ class Deck {
     }
 
     async deal(player) {
-        return new Promise((res, rej) => {
+        return new Promise(async (res, rej) => {
             if (this.cards[0] == undefined || this.cards.length == 0) return rej("Game over.");
 
             // Pick card up from deck and give the card to the player.
@@ -114,19 +111,23 @@ class Deck {
             const card = this.cards.shift();
             player.addCard(card);
 
-            const response = this.checkCard(card, player);
+            const response = await this.checkCard(card, player);
             response != 'self' ? res(true) : res('self');
 
         });
     }
 
     // perform automatic checking for things players can't ask for because this is code, not real life card game with friends.
-    checkCard(card, player) {
+    async checkCard(card, player) {
 
         switch (card.name) {
             case 'Joker':
             case '2':
-                this.deal(player);
+                try {
+                    await this.deal(player);
+                } catch (error) {
+                    console.log(error);
+                }
                 return 'self';
             default:
                 break;
@@ -148,6 +149,8 @@ class Player {
         this.wins = w;
         this.cards = [];
         this.id = crypto.randomUUID(); // UUID v4.
+
+        this.image = "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSQVktBlaScn2b61HilE6uEhDoEHJaz6K8noQ&s";
 
         this.toLeft = tl; // integer 
         this.toRight = tr; // integer of player index in circle..? right!? going clockwise.
@@ -231,24 +234,16 @@ class Player {
     }
 
     // otherPlayer references a player object.
-    take = async (index, otherPlayer) => new Promise((res, rej) => {
-        // take a card from a player at a certain index
+    take = async (index, otherPlayer) => {
         this.addCard(otherPlayer.getCards()[index]);
         otherPlayer.removeCard(index);
-        res(true);
-    });
+    }
 
     // otherPlayer references a player object.
     give = (index, otherPlayer) => {
         // give a card to a player from a certain index in your cards.
         otherPlayer.addCard(this.getCards()[index]);
         this.removeCard(index);
-    }
-
-    // Trade 1 for 1...or take!?
-    trade = (index1, index2, otherPlayer) => {
-        if (index1) this.give(index1, otherPlayer);
-        if (index2) this.take(index2, otherPlayer);
     }
 
     addTimeAsDealer = () => { this.timesAsDealer++; }
@@ -268,8 +263,9 @@ class Player {
 }
 
 class PlayerManager {
-    constructor(data) {
-        this.data = data;
+    constructor(d, l) {
+        this.data = d;
+        this.logger = l;
         this.players = [];
         this.dealer = {
             player: undefined,
@@ -348,7 +344,14 @@ class PlayerManager {
 
         switch (card.name) {
             case 'Queen':
-                isSpades ? await player.queenOfSpadesTrade(index, player2) : trade ? await player.queenTrade(index, player, player2) : null;
+
+                if (isSpades) {
+                    await player.queenOfSpadesTrade(index, player2);
+                } else {
+                    if (trade) {
+                        await player.queenTrade(index, player2);
+                    }
+                }
                 break;
             case 'Ace':
                 if (isSpades) {
@@ -397,24 +400,103 @@ class PlayerManager {
     getTurn = () => { return this.turn; }
 }
 
-class Monitor2 {
-    constructor(pm, d) {
+class Logger {
+    constructor() {
+        this.log = {};
+    }
+
+    /*
+        highestGrapples
+        expectedValues
+        isDealerTurn
+        peekingCard
+        dealtLeft
+        dealtRight
+        dealtSelf
+        chooseDirection
+        tradingQueen
+        tradingQueenOfSpades
+        aceOfSpadesForDealer
+    */
+    logKV(key, value) {
+        this.log[this.turn][key] = value;
+    }
+
+    createTurn(turn) {
+        this.log[turn] = {};
+    }
+}
+
+class Monitor {
+    constructor(pm, d, l) {
         this.playerManager = pm;
         this.deck = d;
-        this.log = ``;
+        this.logger = l;
+        this.startingDeck = undefined;
+
+        this.lastTurn = undefined;
+        this.turn = 1;
     }
 
-    log(value) {
-        this.log += `${value}\n`;
-        return this.log;
+    findTotalGrapples(player) {
+        let val = 0;
+        player.cards.forEach(card => val += card.value);
+        return val;
     }
 
-    monitor() {
+    findHighestGrapples(players) {
+        let topVal = 0;
+        let leader = players[0];
+        players.forEach(player => {
+            let val = this.findTotalGrapples(player);
+            if (val >= topVal) {
+                topVal = val;
+                leader = player;
+            }
+        });
+        return { leader, topVal };
+    }
 
-        // Who has the best odds of winning in the current game state?
+    countCardsInDeck(deck) {
+        const map = new Map();
+        deck.forEach(card => {
+            map.set(card.name, (map.get(card.name) || 0) + 1);
+        });
+        return map;
+    }
+
+    findExpectedValues(deck) {
+        // Determine the amount of each card in the deck.
+        const { cards } = deck;
+        const cardMap = this.countCardsInDeck(cards);
+        const odds = {};
+
+        cardMap.forEach((countOfCardType, typeOfCard) => {
+            odds[typeOfCard] = ((countOfCardType / cards.length) * 100).toFixed(2);
+        });
+
+        return odds;
+    }
+
+    monitor(turn) {
+        this.lastTurn = this.turn;
+        this.turn = turn;
+
+        if (turn == 1) {
+            const cards = this.deck.getCards();
+            this.startingDeck = [...cards];
+        }
 
         // Determine who has the most "Grapples." Does that tie into their odds of winning?
+        const highestGrapples = this.findHighestGrapples(this.playerManager.players);
+        let expectedValues = this.findExpectedValues(this.deck);
 
+        this.logger.logKV('highestGrapples', highestGrapples);
+        this.logger.logKV('expectedValues', expectedValues);
+
+        if (turn == -1) {
+            this.logger.logKV('lastTurn', this.lastTurn);
+        }
     }
 
     // https://www.geeksforgeeks.org/dsa/program-calculate-value-ncr/
@@ -522,34 +604,40 @@ class Monitor {
 */
 
 class GameManager {
-    constructor(data, times) {
+    constructor(data) {
         this.data = data;
-        this.times = times;
         this.timesRan = 0;
+        this.logger = new Logger();
         this.gameOver = false;
+        this.playerbackManager = undefined;
 
         this.init();
     }
 
     init() {
-        this.playerManager = new PlayerManager(this.data);
-        this.deck = new Deck();
-        this.monitor = new Monitor2(this.playerManager, this.deck);
+        this.playerManager = new PlayerManager(this.data, this.logger);
+        this.deck = new Deck(this.logger);
+        this.monitor = new Monitor(this.playerManager, this.deck, this.logger);
         this.startRunning();
     }
 
     async run() {
+        let turn = 0;
         while (this.deck.getCardCount() > 0 && this.running) {
+            turn++;
+            this.logger.createTurn(turn);
             // dealer deals a card to the proper player (the player whos turn it is)
             // that player decides what to do with the card, or Deck() automatically
             // deals with the card.
-            this.monitor.monitor();
+            this.monitor.monitor(turn);
 
             const player = this.playerManager.getPlayers()[this.playerManager.getTurn()];
             const response = {m:undefined};
 
             // Dealer Turn.
             if (this.playerManager.dealer.index == this.playerManager.turn) {
+
+                this.logger.logKV('isDealerTurn', true);
 
                 // if it is the dealers turn the dealer has the option to...
                 // look at the card,
@@ -566,18 +654,30 @@ class GameManager {
                 }
 
                 if (randomNumber < sway) {
-                    response.m = await this.deck.deal(this.playerManager.getPlayers()[player.getToLeft()]);
+                    try {
+                        response.m = await this.deck.deal(this.playerManager.getPlayers()[player.getToLeft()]);
+                    } catch (error) {
+                        console.log(error);
+                    }
                     this.playerManager.updateDealDirection(0);
-                    this.playerManager.nextTurn(); // skip the player who just got 'the dealers card.'
+                    this.playerManager.nextTurn(); // move to the player who just got 'the dealers card.'
                 }
 
                 if (sway <= randomNumber && randomNumber <= 1 - sway) {
-                    response.m = await this.deck.deal(player);
+                    try {
+                        response.m = await this.deck.deal(player);
+                    } catch (error) {
+                        console.log(error);
+                    }
                     this.playerManager.updateDealDirection(randomNumber > 0.5 ? 0 : 1);
                 }
 
                 if (randomNumber > 1 - sway) {
-                    response.m = await this.deck.deal(this.playerManager.getPlayers()[player.getToRight()]);
+                    try {
+                        response.m = await this.deck.deal(this.playerManager.getPlayers()[player.getToRight()]);
+                    } catch (error) {
+                        console.log(error);
+                    }
                     this.playerManager.updateDealDirection(1);
                     this.playerManager.nextTurn(); // move to the player who just got 'the dealers card.'
                 }
@@ -602,6 +702,7 @@ class GameManager {
 
         }
 
+        this.monitor.monitor(-1);
         this.stopRunning();
     }
 
@@ -614,7 +715,7 @@ class GameManager {
     stopRunning() {
         this.running = false;
         this.playerManager.checkWinner();
-        if (this.timesRan < this.times) this.reset();
+        this.playbackManager = new PlaybackManager(this.monitor);
     }
 
     reset() {
@@ -626,11 +727,73 @@ class GameManager {
 
 }
 
+// Stream the results through console GUI? Or web GUI?
+// Then I can put it on my website and send to my math teacher for viewing.
+// My goal is to NOT capture each entire state of the game for each turn, but instead the starting deck, and which cards were received by each player on each turn + times players used special cards, how they used them etc. to display animations of where the cards went.
+class PlaybackManager {
+    constructor(monitor) {
+        this.dom = document.getElementById("dom");
+        
+        console.log(monitor);
+
+        this.init();
+    }
+
+    init() {
+
+        const parent = document.createElement('div');
+
+        const buttonContainer = document.createElement('div');
+        const backButton = this.createButton(this.lastTurn, 'Last Turn');
+        const forwardButton = this.createButton(this.nextTurn, 'Next Turn');
+        buttonContainer.appendChild(backButton);
+        buttonContainer.appendChild(forwardButton);
+
+        const playersContainer = document.createElement('div');
+
+        parent.appendChild(buttonContainer);
+
+        this.dom.appendChild(parent);
+
+    }
+
+    createButton(onclick, innertext) {
+        const button = document.createElement('button');
+        button.innerText = innertext;
+        button.addEventListener('onclick', onclick);
+        return button;
+    }
+
+    createPlayer(player) {
+        const div = document.createElement('div');
+
+        const image = document.createElement('img');
+        image.src = player.image;
+
+        const name = document.createElement('h2');
+        name.innerText = player.name;
+
+        div.appendChild(image);
+        div.appendChild(name);
+
+        return div;
+    }
+
+    lastTurn() {
+
+    }
+
+    nextTurn() {
+
+    }
+    
+}
+
 new GameManager(
     [
         { name: "PlayerOne", colour: "blue", wins: 15 },
         { name: "PlayerTwo", colour: "red", wins: 12 },
-        { name: "PlayerThree", colour: "green", wins: 18 }
-    ],
-    1 // Amount of simulated games to run.
+        { name: "PlayerThree", colour: "green", wins: 18 },
+        { name: "PlayerFour", colour: "green", wins: 18 }
+    ]
 );

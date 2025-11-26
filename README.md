@@ -14,7 +14,7 @@ A player wins by having the most "Grapples" at the end of the game.
 - Ace: 1 (except for the Ace of Spades, which must eventually be discarded).
 
 ## If the card is a...
-- 2 or a Joker: The player can are dealt a second card on that turn only.
+- 2 or a Joker: The player can are dealt a second card on that turn only. This is called "Double-down."
 - Jack: The player can can request to become the dealer by politely asking the current dealer to "tap out." If a dealer receives a Jack they cannot ask themselves to become dealer again. This would effectively reset their turns as dealer, allowing them more time as dealer.
 - Ace of Spades: The player can either immediatley request to become the dealer and then discard the Ace of Spades, or just discard the Ace of Spades. 
 
