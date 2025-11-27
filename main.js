@@ -1,8 +1,6 @@
 /*
     𝑃(𝐴 𝑜𝑟 𝐵) = 𝑃(𝐴) + 𝑃(𝐵) − 𝑃(𝐴 𝑎𝑛𝑑 𝐵)
     𝑃(𝐴|𝐵) = 𝑃(𝐴 𝑎𝑛𝑑 𝐵) 𝑃(𝐵)
-
-    There is hanging promise error for game over. Sometimes.
 */
 
 class Card {
@@ -11,6 +9,7 @@ class Card {
         this.name = n;
         this.value = v;
         this.index = i;
+        this.id = crypto.randomUUID();
     }
 }
 
@@ -109,6 +108,12 @@ class Deck {
             // Pick card up from deck and give the card to the player.
             // shift returns the element it removes the from 'top' (0th index)
             const card = this.cards.shift();
+
+            if (this.logger.getKV('receivedCards') == undefined) {
+                this.logger.logKV('receivedCards', []);
+            }
+            this.logger.log[this.logger.getTurn()]['receivedCards'].push(card.id);
+
             player.addCard(card);
 
             const response = await this.checkCard(card, player);
@@ -143,7 +148,7 @@ class Deck {
 }
 
 class Player {
-    constructor(n, c, w, tl, tr, pc, interact, pi) {
+    constructor(n, c, w, tl, tr, pc, interact, pi, l) {
         this.name = n;
         this.colour = c;
         this.wins = w;
@@ -159,6 +164,7 @@ class Player {
         this.playerCount = pc;
         this.interact = interact;
         this.playerIndex = pi;
+        this.logger = l;
 
         this.timesAsDealer = 0;
     }
@@ -190,13 +196,14 @@ class Player {
         await this.interact(card, this.getCardCount() - 1, player, requestedIndex);
     }
 
-    queenTrade = async (index, player2) => {
+    queenTrade = async (index, player2, count) => {
 
         // give the card to the other player.
         this.give(index, player2);
 
         // Select three random cards to take from the other player.
-        for (let i = 0; i < 3; i++) {
+        let cardsSelected = [];
+        for (let i = 0; i < count; i++) {
 
             // Select a random number based on the amount of cards they have.
             const count = player2.getCardCount();
@@ -204,39 +211,26 @@ class Player {
 
             // Take the card from the other player.
             const cardSelected = Math.floor(Math.random() * (count - 1));
-            await this.take(cardSelected, player2);
+            cardsSelected.push(await this.take(cardSelected, player2));
         }
+        this.logger.logKV('cardsSelected', cardsSelected);
     }
 
-    // Take half of the other players hand.
+    // Take about half of the other players hand.
     queenOfSpadesTrade = async (index, player2) => {
-        // Trade for half of the other players hand or (n / 2) - 1 cards (where n is
-        // total number of cards in their hand).
-        // give the card to the other player.
-        this.give(index, player2);
-
         const count = player2.getCardCount();
-        const cc = (count / 2) - 1;
+        const cc = Math.floor(count / 2);
         const cards = cc > 3 ? cc : 3;
-
-        // Select three random cards to take from the other player.
-        // or (count/2)-1
-        for (let i = 0; i < (count < 3 ? count : cards) ; i++) {
-
-            // Select a random number based on the amount of cards they have.
-            const count = player2.getCardCount();
-            if (count == 0) continue;
-
-            // Take the card from the other player.
-            const cardSelected = Math.floor(Math.random() * (count - 1));
-            await this.take(cardSelected, player2);
-        }
+        const final = count < 3 ? count : cards;
+        this.queenTrade(index, player2, final);
     }
 
     // otherPlayer references a player object.
     take = async (index, otherPlayer) => {
-        this.addCard(otherPlayer.getCards()[index]);
+        const takeCard = otherPlayer.getCards()[index];
+        this.addCard(takeCard);
         otherPlayer.removeCard(index);
+        return takeCard.id;
     }
 
     // otherPlayer references a player object.
@@ -291,7 +285,8 @@ class PlayerManager {
                 index - 1,
                 this.players.length,
                 this.interact,
-                index
+                index,
+                this.logger
             );
 
             if (index === this.data.length - 1) player.setToLeft(0);
@@ -322,6 +317,7 @@ class PlayerManager {
 
     switchDealer(player) {
         if (this.dealer.player.id == player.id) return;
+        this.logger.logKV('switchDealer', player.playerIndex);
         this.dealer.player.setIsDealer(false);
         player.setIsDealer(true);
         player.addTimeAsDealer();
@@ -344,18 +340,20 @@ class PlayerManager {
 
         switch (card.name) {
             case 'Queen':
-
-                if (isSpades) {
-                    await player.queenOfSpadesTrade(index, player2);
-                } else {
-                    if (trade) {
-                        await player.queenTrade(index, player2);
+                if (trade) {
+                    this.logger.logKV('queenTrade', true);
+                    if (isSpades) {
+                        this.logger.logKV('queenOfSpadesTrade', true);
+                        await player.queenOfSpadesTrade(index, player2);
+                        return;
                     }
+                    await player.queenTrade(index, player2);
                 }
                 break;
             case 'Ace':
                 if (isSpades) {
                     player.removeCard(index); // discard (no one can have the ace of spades).
+                    this.logger.logKV('removeAceOfSpades', true);
                     this.maybeSwitchDealer(player); // use maybe because maybe the player just wants to discard the ace.
                 }
                 break;
@@ -368,6 +366,9 @@ class PlayerManager {
     }
 
     nextTurn() {
+
+        // if this.dealer.direction is 0 then the game is going clockwise
+        // if it is 1 then the game is going counter-clockwise.
 
         if (!this.dealer.direction) {
             if (this.turn + 1 == this.getPlayers().length) return this.turn = 0;
@@ -391,11 +392,14 @@ class PlayerManager {
             if (grapples > mostGrapples) this.winner = player;
         });
 
+        this.logger.logKV('winner', this.winner.id);
+
         console.warn('Winner:', this.winner.id, '\n', 'Times as Dealer:', this.winner.timesAsDealer);
     }
 
     addDealerTurn() { this.dealer.turnsAsDealer++; }
     getDealerTurns() { return this.dealer.turnsAsDealer; }
+    getDealDirection() { return this.dealer.direction; }
     getPlayers = () => { return this.players; }
     getTurn = () => { return this.turn; }
 }
@@ -403,6 +407,7 @@ class PlayerManager {
 class Logger {
     constructor() {
         this.log = {};
+        this.turn = 1;
     }
 
     /*
@@ -422,8 +427,15 @@ class Logger {
         this.log[this.turn][key] = value;
     }
 
+    getKV(key) {
+        return this.log[this.turn][key];
+    }
+
+    getTurn = () => this.turn;
+
     createTurn(turn) {
         this.log[turn] = {};
+        this.turn = turn;
     }
 }
 
@@ -482,6 +494,7 @@ class Monitor {
         this.lastTurn = this.turn;
         this.turn = turn;
 
+        if (turn == -1) this.logger.logKV('lastTurn', this.lastTurn);
         if (turn == 1) {
             const cards = this.deck.getCards();
             this.startingDeck = [...cards];
@@ -493,10 +506,6 @@ class Monitor {
 
         this.logger.logKV('highestGrapples', highestGrapples);
         this.logger.logKV('expectedValues', expectedValues);
-
-        if (turn == -1) {
-            this.logger.logKV('lastTurn', this.lastTurn);
-        }
     }
 
     // https://www.geeksforgeeks.org/dsa/program-calculate-value-ncr/
@@ -508,116 +517,28 @@ class Monitor {
         return result;
     }
 
-    // call with no arguments for current odds of getting 1 card.
-    nCr(n = this.deck.cards.length, r = 1) {
+    nCr(n, r) {
         if (r < 0 || r > n) return 0;
         return Math.ceil(this.factorial(n) / (this.factorial(r) * this.factorial(n - r)));
     }
 }
 
-/*
-class Monitor {
-    constructor(pm, d) {
-        this.playerManager = pm;
-        this.deck = d;
-    
-        this.originalDeckCopy = { ...d }
-        this.originalPlayerManager = { ...pm };
-
-        this.allStates = [];
-        this.current = {};
-    }
-
-    // total crap, way overengineered.
-    nCr(n = this.deck.cards.length, r = 1) {
-        // this.deck.cards.length
-        // this.playerManager.turn
-        // this.playerManager.winner
-
-        //         n!
-        //    -----------
-        //    r! (n - r)!
-
-        //          nF
-        //    -------------
-        //    ( rF )( dcF )
-
-        //    nF  = n!
-        //    dcF = (n - r)!
-        //    rF = r!
-
-        //    Where nF should have its values divided by either rF or dcF depening on which has more matching
-        //    values in its factorial array, and where those values multiply to a larger value than rF/dcF (depening
-        //    on what was chosen).
-
-        const nF = this.getFactorialValues(n); // n!
-
-        const dcF = [ ...nF ].splice(r, nF.length); // (n-r)!
-        const nFdcFDivide = this.divideFactorials(nF, dcF);
-
-        // nF is top value nF / rF, check for the cancellations between the arrays, the returned array is the left over values on top for use as nF in next step of equation. If, the length of this array 
-        // is less then the dcFDivide array then this part should be determined canceled and dcF should be used on the current bottom value in multiplyFactorial.
-        const rF = this.getFactorialValues(r); // r!
-        const nFrFDivide = this.divideFactorials(nF, rF);
-
-        const top = nFdcFDivide.length <= nFrFDivide.length ? nFdcFDivide : nFrFDivide;
-        const bottom = nFdcFDivide.length >= nFrFDivide.length ? dcF : rF;
-
-        // use the nFdcFDivide values...because it makes the most possible cancellations with the bottom array.
-        // so the nFrFDivide portion of the equation now does not exist, it has been cancelled out, and the factorial values from rF are what multiply should be divided by (once rF is multipled).
-
-        const tm = this.multiplyFactorial(top);
-        const bm = this.multiplyFactorial(bottom);
-        const oddsString = `${tm} / ${bm}`;
-        const odds = tm / bm;
-    }
-
-    getFactorialValues(num) {
-        const values = [];
-        while (num > 0) {
-            values.push(num);
-            num--;
-        }
-        return values;
-    }
-
-    divideFactorials(fA1, fA2) {
-        if (fA1[0] != fA1.length || fA2[0] != fA2.length || fA2[0] > fA1[0]) {
-            console.error('not a full factorial', fA1, fA2);
-            return false;
-        }
-        const fA1Copy = [ ...fA1 ];
-        fA1Copy.splice(fA1[0] - fA2[0], fA2.length);
-        return fA1Copy;
-    }
-
-    // ^^^ refer to divideFactorials() for documentation ^^^
-    multiplyFactorial(fA) {
-        let value = fA[0];
-        for (let i = 1; i < fA.length; i++) {
-            value *= fA[i];
-        }
-        return value;
-    }
-    
-}
-*/
-
 class GameManager {
     constructor(data) {
         this.data = data;
         this.timesRan = 0;
-        this.logger = new Logger();
         this.gameOver = false;
-        this.playerbackManager = undefined;
 
         this.init();
     }
 
     init() {
+        this.logger = new Logger();
         this.playerManager = new PlayerManager(this.data, this.logger);
         this.deck = new Deck(this.logger);
         this.monitor = new Monitor(this.playerManager, this.deck, this.logger);
+        if (this.playerbackManager?.clear) this.playerbackManager.clear();
+        this.playerbackManager = undefined;
         this.startRunning();
     }
 
@@ -634,10 +555,16 @@ class GameManager {
             const player = this.playerManager.getPlayers()[this.playerManager.getTurn()];
             const response = {m:undefined};
 
+            // Current dealer, and current player whos turn it is.
+            this.logger.logKV('dealer', this.playerManager.dealer.index);
+            this.logger.logKV('player', player.playerIndex);
+
             // Dealer Turn.
             if (this.playerManager.dealer.index == this.playerManager.turn) {
 
                 this.logger.logKV('isDealerTurn', true);
+
+                this.logger.logKV('turnsAsDealer', this.playerManager.getDealerTurns());
 
                 // if it is the dealers turn the dealer has the option to...
                 // look at the card,
@@ -650,7 +577,13 @@ class GameManager {
                 if (lookAtCard) {
                     sway = 0.15;
                     const card = this.deck.peekTopCard();
-                    if (card.value < 1) sway = 0.5; // Don't keep the card.
+
+                    this.logger.logKV('lookedAtCard', true);
+
+                    if (card.value < 1) {
+                        sway = 0.5; // Don't keep the card.
+                        this.logger.logKV('didntKeepCard', true);
+                    }
                 }
 
                 if (randomNumber < sway) {
@@ -660,6 +593,7 @@ class GameManager {
                         console.log(error);
                     }
                     this.playerManager.updateDealDirection(0);
+                    this.logger.logKV('dealtLeft', true);
                     this.playerManager.nextTurn(); // move to the player who just got 'the dealers card.'
                 }
 
@@ -669,7 +603,11 @@ class GameManager {
                     } catch (error) {
                         console.log(error);
                     }
-                    this.playerManager.updateDealDirection(randomNumber > 0.5 ? 0 : 1);
+
+                    let dir = randomNumber > 0.5 ? 0 : 1;
+                    this.playerManager.updateDealDirection(dir);
+                    this.logger.logKV('dealtSelf', true);
+                    this.logger.logKV('chooseDirection', dir);
                 }
 
                 if (randomNumber > 1 - sway) {
@@ -679,17 +617,25 @@ class GameManager {
                         console.log(error);
                     }
                     this.playerManager.updateDealDirection(1);
+                    this.logger.logKV('dealtRight', true);
                     this.playerManager.nextTurn(); // move to the player who just got 'the dealers card.'
                 }
 
             } else {
+                this.logger.logKV('playerTurn', true);
                 response.m = await this.deck.deal(player);
             }
 
-            if (response.m != 'self') {
+            if (response.m == 'self') {
+                this.logger.logKV('multipleCards', true);
+            } else {
                 this.playerManager.nextTurn(); // potentially skip any players that got dealers cards.
                 this.playerManager.addDealerTurn();
             }
+
+
+
+            // Dealer will still switch between one player receiving multiple cards on their turn.
 
             // check for out of range.
             let newIndex = 1;
@@ -702,7 +648,7 @@ class GameManager {
 
         }
 
-        this.monitor.monitor(-1);
+        this.monitor.monitor(-1); // -1 signals end of game, its all kind of useless.
         this.stopRunning();
     }
 
@@ -733,13 +679,40 @@ class GameManager {
 class PlaybackManager {
     constructor(monitor) {
         this.dom = document.getElementById("dom");
-        
-        console.log(monitor);
+        this.players = monitor.playerManager.players;
+        this.log = monitor.logger.log;
+        this.logLength = Object.keys(this.log);
+        this.turn = 0;
+
+        console.log(monitor.logger);
 
         this.init();
     }
 
+    createCirclePositions(playerCount, height) {
+        const radius = height / 2;
+        const centerX = radius;
+        const centerY = radius;
+        const positions = [];
+        const angleIncrementDegrees = 360 / playerCount;
+        for (let i = 0; i < playerCount; i++) {
+            const currentAngleDegrees = i * angleIncrementDegrees;
+            const currentAngleRadians = (currentAngleDegrees * Math.PI) / 180;
+            const x = centerX + (radius * Math.cos(currentAngleRadians));
+            const y = centerY + (radius * Math.sin(currentAngleRadians));
+            positions.push([x, y]);
+        }
+        return positions; // Where each array in the positions array corresponds to the correct player.playerIndex.
+    }
+
     init() {
+
+        let { length } = this.players;
+        // generate players in circle even distance from each other.
+        const circlePositions = this.createCirclePositions(length, window.innerHeight / 2);
+        console.log(circlePositions);
+
+        // generate dom
 
         const parent = document.createElement('div');
 
@@ -750,7 +723,29 @@ class PlaybackManager {
         buttonContainer.appendChild(forwardButton);
 
         const playersContainer = document.createElement('div');
+        playersContainer.style.position = 'relative';
+        playersContainer.style.width = '100%';
+        playersContainer.style.height = '100%';
+        playersContainer.style.backgroundColor = 'red';
+        this.players.forEach(player => {
+            const position = circlePositions[player.playerIndex];
+            const p = this.createPlayer(player, position);
+            
+            // I need to create a shape that has as many points as there are players
+            // and that is the height of the screen.
+            // like with numbers.
 
+            console.log(player.playerIndex);
+
+            p.style.position = 'absolute';
+            p.style.left = `${position[0]}px`;
+            p.style.top = `${position[1]}px`;
+            
+            player.position = circlePositions[player.playerIndex];
+            playersContainer.appendChild(p);
+        });
+
+        parent.appendChild(playersContainer);
         parent.appendChild(buttonContainer);
 
         this.dom.appendChild(parent);
@@ -764,27 +759,36 @@ class PlaybackManager {
         return button;
     }
 
-    createPlayer(player) {
+    createPlayer(player, position) {
         const div = document.createElement('div');
-
+        div.style.position = 'absolute';
+        div.style.left = `${position[0]}px`;
+        div.style.top = `${position[1]}px`;
         const image = document.createElement('img');
         image.src = player.image;
-
+        image.style.height = '100px';
+        image.style.width = '100px';
         const name = document.createElement('h2');
         name.innerText = player.name;
-
         div.appendChild(image);
         div.appendChild(name);
-
         return div;
     }
 
     lastTurn() {
-
+        if (this.turn - 1 < 0) return;
+        this.turn--;
+        this.generateState(this.turn);
     }
 
     nextTurn() {
+        if (this.turn + 1 > this.logLength) return;
+        this.turn++;
+        this.generateState(this.turn);
+    }
 
+    generateState(turn) {
+        console.log(turn);
     }
     
 }
@@ -794,6 +798,10 @@ new GameManager(
         { name: "PlayerOne", colour: "blue", wins: 15 },
         { name: "PlayerTwo", colour: "red", wins: 12 },
         { name: "PlayerThree", colour: "green", wins: 18 },
-        { name: "PlayerFour", colour: "green", wins: 18 }
+        { name: "PlayerFour", colour: "green", wins: 18 },
+        { name: "PlayerFour", colour: "green", wins: 18 },
+        { name: "PlayerFive", colour: "green", wins: 18 },
+        { name: "PlayerSix", colour: "green", wins: 18 },
+        { name: "PlayerSeven", colour: "green", wins: 18 }
     ]
 );
