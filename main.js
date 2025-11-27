@@ -1,6 +1,11 @@
 /*
     𝑃(𝐴 𝑜𝑟 𝐵) = 𝑃(𝐴) + 𝑃(𝐵) − 𝑃(𝐴 𝑎𝑛𝑑 𝐵)
     𝑃(𝐴|𝐵) = 𝑃(𝐴 𝑎𝑛𝑑 𝐵) 𝑃(𝐵)
+
+
+    My issue with the first 500 lines that I wrote here is that the game is built to run automatically all the way through to create a log of the data during the match. Which means for the UI, I will
+    have ................aslkdjaskjdhajskjdhasdk
+
 */
 
 class Card {
@@ -484,7 +489,7 @@ class Monitor {
         const odds = {};
 
         cardMap.forEach((countOfCardType, typeOfCard) => {
-            odds[typeOfCard] = ((countOfCardType / cards.length) * 100).toFixed(2);
+            odds[typeOfCard] = { chance: ((countOfCardType / cards.length) * 100).toFixed(2), amount: countOfCardType };
         });
 
         return odds;
@@ -681,16 +686,17 @@ class PlaybackManager {
         this.dom = document.getElementById("dom");
         this.players = monitor.playerManager.players;
         this.log = monitor.logger.log;
-        this.logLength = Object.keys(this.log);
+        this.logLength = Object.keys(this.log).length;
         this.turn = 0;
 
-        console.log(monitor.logger);
+        this.statDOM = {};
 
         this.init();
     }
 
-    createCirclePositions(playerCount, height) {
-        const radius = height / 2;
+    // http://youtube.com/watch?v=UgE05IwjrJQ
+    createCirclePositions(playerCount, r) {
+        const radius = r / 2;
         const centerX = radius;
         const centerY = radius;
         const positions = [];
@@ -705,57 +711,44 @@ class PlaybackManager {
         return positions; // Where each array in the positions array corresponds to the correct player.playerIndex.
     }
 
-    init() {
-
-        let { length } = this.players;
-        // generate players in circle even distance from each other.
-        const circlePositions = this.createCirclePositions(length, window.innerHeight / 2);
-        console.log(circlePositions);
-
-        // generate dom
-
+    init = () => {
         const parent = document.createElement('div');
 
         const buttonContainer = document.createElement('div');
-        const backButton = this.createButton(this.lastTurn, 'Last Turn');
-        const forwardButton = this.createButton(this.nextTurn, 'Next Turn');
+        const backButton = this.createButton('Last Turn');
+        const forwardButton = this.createButton('Next Turn');
+        backButton.addEventListener('click', this.lastTurn.bind(this));
+        forwardButton.addEventListener('click', this.nextTurn.bind(this));
         buttonContainer.appendChild(backButton);
         buttonContainer.appendChild(forwardButton);
 
         const playersContainer = document.createElement('div');
+        const height = window.innerHeight / 2;
+        const heightString = `${height + 50}px`;
         playersContainer.style.position = 'relative';
-        playersContainer.style.width = '100%';
-        playersContainer.style.height = '100%';
-        playersContainer.style.backgroundColor = 'red';
+        playersContainer.style.height = heightString;
+        playersContainer.style.backgroundColor = 'blue';
+
+
+        let { length } = this.players;
+        const circlePositions = this.createCirclePositions(length, height);
         this.players.forEach(player => {
-            const position = circlePositions[player.playerIndex];
-            const p = this.createPlayer(player, position);
-            
-            // I need to create a shape that has as many points as there are players
-            // and that is the height of the screen.
-            // like with numbers.
-
-            console.log(player.playerIndex);
-
-            p.style.position = 'absolute';
-            p.style.left = `${position[0]}px`;
-            p.style.top = `${position[1]}px`;
-            
-            player.position = circlePositions[player.playerIndex];
-            playersContainer.appendChild(p);
+            const position = player.position = circlePositions[player.playerIndex];
+            playersContainer.appendChild(this.createPlayer(player, position));
         });
+        this.playersContainer = playersContainer;
 
         parent.appendChild(playersContainer);
         parent.appendChild(buttonContainer);
+        parent.appendChild(this.createStatBoard());
 
         this.dom.appendChild(parent);
 
     }
 
-    createButton(onclick, innertext) {
+    createButton(innertext) {
         const button = document.createElement('button');
         button.innerText = innertext;
-        button.addEventListener('onclick', onclick);
         return button;
     }
 
@@ -764,31 +757,165 @@ class PlaybackManager {
         div.style.position = 'absolute';
         div.style.left = `${position[0]}px`;
         div.style.top = `${position[1]}px`;
+
+        const profileContainer = document.createElement('div');
+        profileContainer.style.display = 'flex';
+        profileContainer.style.flexDirection = 'row';
+        profileContainer.style.alignItems = 'center';
+        profileContainer.style.gap = '.75rem';
+
         const image = document.createElement('img');
         image.src = player.image;
-        image.style.height = '100px';
-        image.style.width = '100px';
-        const name = document.createElement('h2');
+        image.style.height = '30px';
+        image.style.width = '30px';
+        const name = document.createElement('p');
         name.innerText = player.name;
-        div.appendChild(image);
-        div.appendChild(name);
+        profileContainer.appendChild(image);
+        profileContainer.appendChild(name);
+        div.appendChild(profileContainer);
+        return div;
+    }
+
+    createStatBoard() {
+        const div = document.createElement('div');
+        div.style.display = 'flex';
+        div.style.flexDirection = 'column';
+
+        const keyMoments = document.createElement('ul'); // MAYBE
+
+        const expectedValues = document.createElement('ul');
+
+        const turnCountContainer = document.createElement('div');
+        const turnCount = document.createElement('p');
+        turnCountContainer.appendChild(turnCount);
+
+        const highestGrapplesContainer = document.createElement('div');
+        highestGrapplesContainer.style.backgroundColor = 'red';
+        const highestGrapplesText = document.createElement('p');
+        const highestGrapplesPlayer = document.createElement('p');
+        highestGrapplesText.innerText = '0';
+        highestGrapplesPlayer.innerText = 'Leader: N/A';
+        highestGrapplesContainer.appendChild(highestGrapplesText);
+        highestGrapplesContainer.appendChild(highestGrapplesPlayer);
+        this.statDOM = { 
+            ...this.statDOM, 
+            expectedValues,
+            keyMoments, // MAYBE
+            highestGrapplesContainer, 
+            highestGrapplesText, 
+            highestGrapplesPlayer,
+            turnCount
+        };
+
+        div.appendChild(turnCountContainer);
+        div.appendChild(highestGrapplesContainer);
+        div.appendChild(keyMoments);
+        div.appendChild(expectedValues);
         return div;
     }
 
     lastTurn() {
         if (this.turn - 1 < 0) return;
         this.turn--;
-        this.generateState(this.turn);
+        this.generateState(this.turn, 0);
     }
 
     nextTurn() {
         if (this.turn + 1 > this.logLength) return;
         this.turn++;
-        this.generateState(this.turn);
+        this.generateState(this.turn, 1);
     }
 
-    generateState(turn) {
-        console.log(turn);
+    generateState(turn, direction) {
+
+        this.statDOM['turnCount'].innerText = turn > 0 ? turn : '';
+
+        const turnInfo = this.log[turn];
+        if (turnInfo == undefined) return;
+
+        const keys = Object.keys(turnInfo);
+        const keys2 = Object.keys(this.log[turn + 1]);
+
+        keys.forEach(key => {
+
+            const value = turnInfo[key];
+            console.log(key);
+
+            // Each key has a value, its presence though usually means that it is true.
+            // Do everything with the key/value present
+
+            switch (key) {
+                case 'dealer':
+
+                    // always track who the last dealer was? doesnt matter which direction?
+
+                    // going backwards and forwards highlighting the dealer is a total pain in the ass.
+                    // like when I go backwards all this code is useless, when I go forward, its okay.
+                    // I could write a switch for forward button, and a switch for backward button?
+                    const dealer = this.playersContainer.children[value];
+                    if (keys.includes('switchDealer')) return dealer.style.backgroundColor = 'transparent';
+                    if (!direction && keys2.includes('switchDealer')) {
+                        const oldDealer = this.log[turn + 1].switchDealer;
+                        this.playersContainer.children[oldDealer].style.backgroundColor = 'transparent';
+                    }
+                    dealer.style.backgroundColor = 'pink';
+                    break;
+                case 'switchDealer':
+
+                    const newDealer = this.playersContainer.children[value];
+                    newDealer.style.backgroundColor = 'pink';
+                    
+                    
+                    
+                    break;
+                case 'highestGrapples':
+                    this.statDOM['highestGrapplesText'].innerText = `${value.topVal}`;
+                    this.statDOM['highestGrapplesPlayer'].innerText = `${value.leader.name}`;
+                    break;
+                case 'expectedValues':
+                    this.fillExpectedValues(this.statDOM['expectedValues'], value);
+                    break;
+                
+            }
+
+        });
+
+    }
+
+    fillExpectedValues(ul, list) {
+        ul.innerHTML = '';
+
+        const keys = Object.keys(list);
+
+        if (this.expectedValuesClone == undefined) {
+            this.expectedValuesClone = document.createElement('li');
+            this.expectedValuesClone.style.display = 'flex';
+            this.expectedValuesClone.style.flexDirection = 'row';
+            this.expectedValuesClone.style.alignItems = 'center';
+            this.expectedValuesClone.style.gap = '.75rem';
+        }
+
+        if (keys == undefined) return;
+
+        const li = document.createElement('li');
+        const p = document.createElement('p');
+        p.innerText = 'Card Name | Percentage Chance | Amount of Card Remaining';
+        li.appendChild(p);
+        ul.appendChild(li);
+
+        keys.forEach(key => {
+            const li = this.expectedValuesClone.cloneNode();
+            const p1 = p.cloneNode();
+            p1.innerText = `${key}`;
+            const p2 = p.cloneNode();
+            p2.innerText = `${list[key].chance}`;
+            const p3 = p.cloneNode();
+            p3.innerText = `${list[key].amount}`;
+            li.appendChild(p1);
+            li.appendChild(p2);
+            li.appendChild(p3);
+            ul.appendChild(li);
+        });
     }
     
 }
@@ -799,9 +926,6 @@ new GameManager(
         { name: "PlayerTwo", colour: "red", wins: 12 },
         { name: "PlayerThree", colour: "green", wins: 18 },
         { name: "PlayerFour", colour: "green", wins: 18 },
-        { name: "PlayerFour", colour: "green", wins: 18 },
         { name: "PlayerFive", colour: "green", wins: 18 },
-        { name: "PlayerSix", colour: "green", wins: 18 },
-        { name: "PlayerSeven", colour: "green", wins: 18 }
     ]
 );
