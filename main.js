@@ -114,10 +114,7 @@ class Deck {
             // shift returns the element it removes the from 'top' (0th index)
             const card = this.cards.shift();
 
-            if (this.logger.getKV('receivedCards') == undefined) {
-                this.logger.logKV('receivedCards', []);
-            }
-            this.logger.log[this.logger.getTurn()]['receivedCards'].push(card.id);
+            this.logger.log[this.logger.getTurn()]['receivedCard'] = card.id;
 
             player.addCard(card);
 
@@ -133,11 +130,6 @@ class Deck {
         switch (card.name) {
             case 'Joker':
             case '2':
-                try {
-                    await this.deal(player);
-                } catch (error) {
-                    console.log(error);
-                }
                 return 'self';
             default:
                 break;
@@ -300,14 +292,18 @@ class PlayerManager {
             this.players.push(player);
         });
 
+        console.log(this.players);
+
         // Determine the first dealer.
-        const dealerIndex = Math.floor(Math.random() * (this.players.length - 1));
+        const dealerIndex = Math.floor(Math.random() * (this.players.length));
         this.dealer = {
             player: this.players[dealerIndex],
             turnsAsDealer: 0,
             index: dealerIndex,
         };
         this.turn = dealerIndex;
+
+        console.log(this.dealer);
     }
 
     maybeSwitchDealer(player) {
@@ -329,6 +325,8 @@ class PlayerManager {
         this.dealer.player = player;
         this.dealer.index = player.playerIndex;
         this.dealer.turnsAsDealer = 0;
+
+        console.log(this.dealer.player.name);
     }
 
     updateDealDirection(direction) {
@@ -387,19 +385,14 @@ class PlayerManager {
 
     checkWinner() {
         let mostGrapples = 0;
-        let winner = undefined;
-
         this.getPlayers().forEach(player => {
             const cards = player.getCards();
             if (cards.length == 0) return;
             let grapples = 0;
             cards.forEach(card => grapples += card.value);
-            if (grapples > mostGrapples) this.winner = player;
+            if (grapples >= mostGrapples) this.winner = player;
         });
-
         this.logger.logKV('winner', this.winner.id);
-
-        console.warn('Winner:', this.winner.id, '\n', 'Times as Dealer:', this.winner.timesAsDealer);
     }
 
     addDealerTurn() { this.dealer.turnsAsDealer++; }
@@ -412,22 +405,9 @@ class PlayerManager {
 class Logger {
     constructor() {
         this.log = {};
-        this.turn = 1;
+        this.turn = 1; // count of total amount of turns (not related to PlayerManager.turn / turnIndex whatever it is called).
     }
 
-    /*
-        highestGrapples
-        expectedValues
-        isDealerTurn
-        peekingCard
-        dealtLeft
-        dealtRight
-        dealtSelf
-        chooseDirection
-        tradingQueen
-        tradingQueenOfSpades
-        aceOfSpadesForDealer
-    */
     logKV(key, value) {
         this.log[this.turn][key] = value;
     }
@@ -549,6 +529,7 @@ class GameManager {
 
     async run() {
         let turn = 0;
+        let isSelf = 0;
         while (this.deck.getCardCount() > 0 && this.running) {
             turn++;
             this.logger.createTurn(turn);
@@ -556,6 +537,8 @@ class GameManager {
             // that player decides what to do with the card, or Deck() automatically
             // deals with the card.
             this.monitor.monitor(turn);
+
+            this.playerManager.addDealerTurn();
 
             const player = this.playerManager.getPlayers()[this.playerManager.getTurn()];
             const response = {m:undefined};
@@ -579,8 +562,9 @@ class GameManager {
                 const lookAtCard = randomNumber > 0.5;
                 let sway = 0.25;
 
-                if (lookAtCard) {
+                if (lookAtCard && !isSelf) {
                     sway = 0.15;
+                    isSelf = 0;
                     const card = this.deck.peekTopCard();
 
                     this.logger.logKV('lookedAtCard', true);
@@ -594,20 +578,16 @@ class GameManager {
                 if (randomNumber < sway) {
                     try {
                         response.m = await this.deck.deal(this.playerManager.getPlayers()[player.getToLeft()]);
-                    } catch (error) {
-                        console.log(error);
-                    }
+                    } catch (error) {}
                     this.playerManager.updateDealDirection(0);
                     this.logger.logKV('dealtLeft', true);
-                    this.playerManager.nextTurn(); // move to the player who just got 'the dealers card.'
+                    this.playerManager.nextTurn();
                 }
 
                 if (sway <= randomNumber && randomNumber <= 1 - sway) {
                     try {
                         response.m = await this.deck.deal(player);
-                    } catch (error) {
-                        console.log(error);
-                    }
+                    } catch (error) {}
 
                     let dir = randomNumber > 0.5 ? 0 : 1;
                     this.playerManager.updateDealDirection(dir);
@@ -617,13 +597,13 @@ class GameManager {
 
                 if (randomNumber > 1 - sway) {
                     try {
-                        response.m = await this.deck.deal(this.playerManager.getPlayers()[player.getToRight()]);
-                    } catch (error) {
-                        console.log(error);
-                    }
+                        const toRight = this.playerManager.getPlayers()[player.getToRight()];
+                        response.m = await this.deck.deal(toRight);
+                        this.logger.logKV('player', toRight.playerIndex);
+                    } catch (error) {}
                     this.playerManager.updateDealDirection(1);
                     this.logger.logKV('dealtRight', true);
-                    this.playerManager.nextTurn(); // move to the player who just got 'the dealers card.'
+                    this.playerManager.nextTurn();
                 }
 
             } else {
@@ -631,23 +611,16 @@ class GameManager {
                 response.m = await this.deck.deal(player);
             }
 
-            if (response.m == 'self') {
-                this.logger.logKV('multipleCards', true);
+            if (response.m != 'self') {
+                this.playerManager.nextTurn();
             } else {
-                this.playerManager.nextTurn(); // potentially skip any players that got dealers cards.
-                this.playerManager.addDealerTurn();
+                isSelf = 1;
             }
 
-
-
-            // Dealer will still switch between one player receiving multiple cards on their turn.
-
-            // check for out of range.
             let newIndex = 1;
             let pl = this.playerManager.players.length;
             let di = this.playerManager.dealer.index;
             if (di + newIndex == pl) newIndex = newIndex - pl;
-
             let newDealer = this.playerManager.getPlayers()[di + newIndex];
             if (this.playerManager.getDealerTurns() == 8) this.playerManager.switchDealer(newDealer);
 
@@ -688,6 +661,7 @@ class PlaybackManager {
         this.log = monitor.logger.log;
         this.logLength = Object.keys(this.log).length;
         this.turn = 0;
+        this.deck = [...monitor.startingDeck];
 
         this.statDOM = {};
 
@@ -731,7 +705,8 @@ class PlaybackManager {
 
 
         let { length } = this.players;
-        const circlePositions = this.createCirclePositions(length, height);
+        console.log(this.players);
+        const circlePositions = this.circlePositions = this.createCirclePositions(length, height);
         this.players.forEach(player => {
             const position = player.position = circlePositions[player.playerIndex];
             playersContainer.appendChild(this.createPlayer(player, position));
@@ -814,17 +789,52 @@ class PlaybackManager {
         return div;
     }
 
-    lastTurn() {
+    createCard(realCard, position) {
+        const card = document.createElement('div');
+        card.style.position = 'absolute';
+        card.innerText = `${realCard.name} of ${realCard.type}`;
+        card.style.backgroundColor = '#fff';
+        card.style.height = '110px';
+        card.style.width = '80px';
+        return card;
+    }
+
+    lastTurn(event) {
+        event.preventDefault();
         if (this.turn - 1 < 0) return;
         this.turn--;
         this.generateState(this.turn, 0);
     }
 
-    nextTurn() {
+    nextTurn(event) {
+        event.preventDefault();
         if (this.turn + 1 > this.logLength) return;
         this.turn++;
-        this.generateState(this.turn, 1);
+        this.generateState(this.turn, 0);
     }
+
+    
+    animateMovement(duration, element, startX, startY, endX, endY) {
+
+        const startTime = performance.now();
+
+        function update(currentTime) {
+            const elapsed = currentTime - startTime;
+            
+            const progress = Math.min(elapsed / duration, 1);
+            const currentX = startX + (endX - startX) * progress;
+            const currentY = startY + (endY - startY) * progress;
+            element.style.transform = `translate(${currentX}px, ${currentY}px)`;
+            if (progress < 1) {
+                requestAnimationFrame(update);
+            }
+        }
+
+        // Start the very first frame loop
+        requestAnimationFrame(update);
+    }
+
+    // when dealer deals to self sometimes it skips the first player in whichever direction they choose.
 
     generateState(turn, direction) {
 
@@ -832,14 +842,15 @@ class PlaybackManager {
 
         const turnInfo = this.log[turn];
         if (turnInfo == undefined) return;
+        
+        const dealerIndex = this.log[turn]['dealer'];
+        const playerIndex = this.log[turn]['player'];
 
         const keys = Object.keys(turnInfo);
-        const keys2 = Object.keys(this.log[turn + 1]);
 
         keys.forEach(key => {
 
             const value = turnInfo[key];
-            console.log(key);
 
             // Each key has a value, its presence though usually means that it is true.
             // Do everything with the key/value present
@@ -847,26 +858,19 @@ class PlaybackManager {
             switch (key) {
                 case 'dealer':
 
-                    // always track who the last dealer was? doesnt matter which direction?
-
-                    // going backwards and forwards highlighting the dealer is a total pain in the ass.
-                    // like when I go backwards all this code is useless, when I go forward, its okay.
-                    // I could write a switch for forward button, and a switch for backward button?
                     const dealer = this.playersContainer.children[value];
                     if (keys.includes('switchDealer')) return dealer.style.backgroundColor = 'transparent';
-                    if (!direction && keys2.includes('switchDealer')) {
+                    
+                    // if going backwards a turn.
+                    if (!direction && this.log[turn + 1] != undefined && Object.keys(this.log[turn + 1]).includes('switchDealer')) {
                         const oldDealer = this.log[turn + 1].switchDealer;
                         this.playersContainer.children[oldDealer].style.backgroundColor = 'transparent';
                     }
                     dealer.style.backgroundColor = 'pink';
                     break;
                 case 'switchDealer':
-
                     const newDealer = this.playersContainer.children[value];
                     newDealer.style.backgroundColor = 'pink';
-                    
-                    
-                    
                     break;
                 case 'highestGrapples':
                     this.statDOM['highestGrapplesText'].innerText = `${value.topVal}`;
@@ -875,11 +879,44 @@ class PlaybackManager {
                 case 'expectedValues':
                     this.fillExpectedValues(this.statDOM['expectedValues'], value);
                     break;
-                
+                case 'receivedCard':
+                    // display animation of dealer handing the cards to the player.
+                    // get the cards values by the ids in value (which is array []).
+                    // they are received in the order [0 -> n];
+
+                    const dealerIndex = this.log[turn]['dealer'];
+                    const playerIndex = this.log[turn]['player'];
+                    const dealer2 = this.circlePositions[dealerIndex];
+                    const player = this.circlePositions[playerIndex];
+
+
+                    const x1 = dealer2[0];
+                    const y1 = dealer2[1];
+                    const x2 = player[0];
+                    const y2 = player[1];
+
+                    const realCard = this.findCardById(value);
+                    const card = this.createCard(realCard, [x1, y1]);
+
+                    this.deck.slice()
+
+                    this.playersContainer.appendChild(card);
+                    this.animateMovement(500, card, x1, y1, x2, y2);
+                    break;
+                case 'dealtRight':
+                    console.log('dealt right');
+                    break;
+                case 'dealtLeft':
+                    console.log('dealt left');
+                    break;
             }
 
         });
 
+    }
+
+    findCardById(id) {
+        return this.deck.find(item => item.id == id);
     }
 
     fillExpectedValues(ul, list) {
