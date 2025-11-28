@@ -195,6 +195,8 @@ class Player {
 
     queenTrade = async (index, player2, count) => {
 
+        this.logger.logKV('possibleCardsCount', `${count}`);
+
         // give the card to the other player.
         this.give(index, player2);
 
@@ -211,15 +213,21 @@ class Player {
             cardsSelected.push(await this.take(cardSelected, player2));
         }
         this.logger.logKV('cardsSelected', cardsSelected);
+        console.log(player2.playerIndex);
+        this.logger.logKV('playerSelectedQueenTrade', player2.playerIndex);
+    }
+
+    calculateQueenTradeCards(player2) {
+        const count = player2.getCardCount();
+        const cc = Math.floor(count / 2);
+        const cards = cc > 3 ? cc : 3;
+        return count < 3 ? count : cards;
     }
 
     // Take about half of the other players hand.
     queenOfSpadesTrade = async (index, player2) => {
-        const count = player2.getCardCount();
-        const cc = Math.floor(count / 2);
-        const cards = cc > 3 ? cc : 3;
-        const final = count < 3 ? count : cards;
-        this.queenTrade(index, player2, final);
+        const count = this.calculateQueenTradeCards(player2);
+        this.queenTrade(index, player2, count);
     }
 
     // otherPlayer references a player object.
@@ -292,8 +300,6 @@ class PlayerManager {
             this.players.push(player);
         });
 
-        console.log(this.players);
-
         // Determine the first dealer.
         const dealerIndex = Math.floor(Math.random() * (this.players.length));
         this.dealer = {
@@ -302,8 +308,6 @@ class PlayerManager {
             index: dealerIndex,
         };
         this.turn = dealerIndex;
-
-        console.log(this.dealer);
     }
 
     maybeSwitchDealer(player) {
@@ -325,8 +329,6 @@ class PlayerManager {
         this.dealer.player = player;
         this.dealer.index = player.playerIndex;
         this.dealer.turnsAsDealer = 0;
-
-        console.log(this.dealer.player.name);
     }
 
     updateDealDirection(direction) {
@@ -347,10 +349,10 @@ class PlayerManager {
                     this.logger.logKV('queenTrade', true);
                     if (isSpades) {
                         this.logger.logKV('queenOfSpadesTrade', true);
-                        await player.queenOfSpadesTrade(index, player2);
-                        return;
+                        return await player.queenOfSpadesTrade(index, player2);
                     }
-                    await player.queenTrade(index, player2);
+                    const count = player.calculateQueenTradeCards(player2);
+                    await player.queenTrade(index, player2, count);
                 }
                 break;
             case 'Ace':
@@ -577,7 +579,9 @@ class GameManager {
 
                 if (randomNumber < sway) {
                     try {
-                        response.m = await this.deck.deal(this.playerManager.getPlayers()[player.getToLeft()]);
+                        const toLeft = this.playerManager.getPlayers()[player.getToLeft()];
+                        response.m = await this.deck.deal(toLeft);
+                        this.logger.logKV('player', toLeft.playerIndex);
                     } catch (error) {}
                     this.playerManager.updateDealDirection(0);
                     this.logger.logKV('dealtLeft', true);
@@ -662,6 +666,7 @@ class PlaybackManager {
         this.logLength = Object.keys(this.log).length;
         this.turn = 0;
         this.deck = [...monitor.startingDeck];
+        this.buttonSync = [];
 
         this.statDOM = {};
 
@@ -695,6 +700,8 @@ class PlaybackManager {
         forwardButton.addEventListener('click', this.nextTurn.bind(this));
         buttonContainer.appendChild(backButton);
         buttonContainer.appendChild(forwardButton);
+        this.buttonSync.push(backButton);
+        this.buttonSync.push(forwardButton);
 
         const playersContainer = document.createElement('div');
         const height = window.innerHeight / 2;
@@ -705,7 +712,6 @@ class PlaybackManager {
 
 
         let { length } = this.players;
-        console.log(this.players);
         const circlePositions = this.circlePositions = this.createCirclePositions(length, height);
         this.players.forEach(player => {
             const position = player.position = circlePositions[player.playerIndex];
@@ -733,6 +739,16 @@ class PlaybackManager {
         div.style.left = `${position[0]}px`;
         div.style.top = `${position[1]}px`;
 
+        div.style.backgroundColor = 'red';
+
+        const cardContainer = document.createElement('div');
+        cardContainer.style.width = '100px';
+        cardContainer.style.height = '50px';
+        cardContainer.style.backgroundColor = 'red';
+        cardContainer.style.width = window.innerHeight / 2;
+        player.cardContainer = cardContainer;
+        div.appendChild(cardContainer);
+
         const profileContainer = document.createElement('div');
         profileContainer.style.display = 'flex';
         profileContainer.style.flexDirection = 'row';
@@ -745,6 +761,7 @@ class PlaybackManager {
         image.style.width = '30px';
         const name = document.createElement('p');
         name.innerText = player.name;
+
         profileContainer.appendChild(image);
         profileContainer.appendChild(name);
         div.appendChild(profileContainer);
@@ -789,11 +806,12 @@ class PlaybackManager {
         return div;
     }
 
-    createCard(realCard, position) {
+    createCard(realCard) {
         const card = document.createElement('div');
-        card.style.position = 'absolute';
+        card.id = realCard.id;
         card.innerText = `${realCard.name} of ${realCard.type}`;
         card.style.backgroundColor = '#fff';
+        card.style.position = 'absolute';
         card.style.height = '110px';
         card.style.width = '80px';
         return card;
@@ -814,7 +832,7 @@ class PlaybackManager {
     }
 
     
-    animateMovement(duration, element, startX, startY, endX, endY) {
+    animateMovement(duration, element, finalContainer, startX, startY, endX, endY) {
 
         const startTime = performance.now();
 
@@ -827,6 +845,9 @@ class PlaybackManager {
             element.style.transform = `translate(${currentX}px, ${currentY}px)`;
             if (progress < 1) {
                 requestAnimationFrame(update);
+            } else {
+                finalContainer.appendChild(element);
+                element.style.transform = `translate(${0}px, ${0}px)`;
             }
         }
 
@@ -843,11 +864,7 @@ class PlaybackManager {
         const turnInfo = this.log[turn];
         if (turnInfo == undefined) return;
         
-        const dealerIndex = this.log[turn]['dealer'];
-        const playerIndex = this.log[turn]['player'];
-
         const keys = Object.keys(turnInfo);
-
         keys.forEach(key => {
 
             const value = turnInfo[key];
@@ -856,6 +873,11 @@ class PlaybackManager {
             // Do everything with the key/value present
 
             switch (key) {
+                case 'dealtLeft':
+                case 'dealtRight':
+                    console.warn(key);
+                    console.log(keys);
+                    break;
                 case 'dealer':
 
                     const dealer = this.playersContainer.children[value];
@@ -896,18 +918,79 @@ class PlaybackManager {
                     const y2 = player[1];
 
                     const realCard = this.findCardById(value);
-                    const card = this.createCard(realCard, [x1, y1]);
-
-                    this.deck.slice()
+                    const card = this.createCard(realCard);
+                    
+                    //this.deck.slice(turn - 1, 1);
 
                     this.playersContainer.appendChild(card);
-                    this.animateMovement(500, card, x1, y1, x2, y2);
+                    this.animateMovement(500, card, this.players[playerIndex].cardContainer, x1, y1, x2, y2);
                     break;
-                case 'dealtRight':
-                    console.log('dealt right');
-                    break;
-                case 'dealtLeft':
-                    console.log('dealt left');
+                case 'queenTrade':
+                    console.warn('-----------------------');
+                    console.log(value);
+                    console.log(this.log[turn]);
+
+                    const cardsSelected = this.log[turn]['cardsSelected'];
+                    console.log('cardsSelected', cardsSelected);
+
+                    const cardReceived = this.log[turn]['receivedCard']; // id of card (the queen)
+                    console.log('cardReceived', cardReceived);
+                    const queen = this.findCardById(cardReceived); // card record from deck
+                    console.log(queen);
+                    const queenDOM = document.getElementById(cardReceived);
+                    console.log('queenDOM', queenDOM);
+
+                    const realPlayer = this.players[this.log[turn]['player']];
+                    console.log('realPlayer', realPlayer);
+
+                    const playerSelected = this.log[turn]['playerSelectedQueenTrade']; // index of selected player to take cards from.
+                    console.log('playerSelected', playerSelected);
+                    const actualPlayer = this.players[playerSelected]; // the actual player, not just the selected index.
+                    console.log('actualPlayer', actualPlayer);
+                    console.log('actualPlayer cardContainer', actualPlayer.cardContainer);
+
+                    const possibleCardsCount = this.log[turn]['possibleCardsCount'];
+                    console.log('possibleCardsCount', possibleCardsCount);
+
+                    // Move the queen from the player who received the queens inventory
+                    // to the other players inventory.
+                    this.playersContainer.appendChild(queenDOM);
+                    this.animateMovement(
+                        10000, 
+                        queenDOM, 
+                        actualPlayer.cardContainer,
+                        realPlayer.position[0],
+                        realPlayer.position[1],
+                        actualPlayer.position[0],
+                        actualPlayer.position[1]
+                    );
+
+                    // for each of the cards selected move the cards from the
+                    // selectedplayers inventory to the players (person who
+                    // got the queen) inventory
+                    cardsSelected.forEach(item => {
+                        const realCard = document.getElementById(item);
+                        setTimeout(() => {
+                            this.playersContainer.appendChild(realCard);
+                            this.animateMovement(
+                                10000, 
+                                realCard, 
+                                realPlayer.cardContainer,
+                                actualPlayer.position[0],
+                                actualPlayer.position[1],
+                                realPlayer.position[0],
+                                realPlayer.position[1]
+                            );
+                        }, 2000);
+                    });
+
+                    // Move the queen from the player who received the queens inventory
+                    // to the other players inventory.
+
+                    // Animate this transaction.
+
+                    // Calculate final grapples based on the card ids in a players inventory. or attach value to the DOM item.
+
                     break;
             }
 

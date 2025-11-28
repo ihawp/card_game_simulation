@@ -6,6 +6,31 @@ A players turn consists of being dealt at least 1 card from the non-replacement 
 
 A player wins by having the most "Grapples" at the end of the game.
 
+## Events:
+- receivedCards
+- cardsSelected
+- switchDealer
+- queenTrade
+- queenOfSpadesTrade
+- removeAceOfSpades
+- winner
+- lastTurn
+- highestGrapples
+- expectedValues
+- dealer
+- player
+- isDealerTurn
+- turnsAsDealer
+- lookedAtCard
+- didntKeepCard
+- dealtLeft
+- dealtSelf
+- chooseDirection
+- dealtRight
+- playerTurn
+- multipleCards
+
+
 ## Card Values (in Grapples):
 - Joker: -2
 - Queen/King: -10
@@ -26,6 +51,8 @@ Any dealer can look at the top card before any of their turns while they are the
 If any player draws the Ace of Spades they can redeem it to immediatley become the dealer, or discard it.
 
 The first dealer is determined by pulling cards  (every player gets a card) from the pile until only one person has the highest value card.
+
+A dealer becoming the dealer does not make it the dealers turn, if the circle has a direction and it is not whoever just became the dealers turn, the dealer must continue dealing in that direction. Once it is the dealers turn again they can utilize the listed options for their potential card.
 
 ## Dealer: Tap Out
 A dealer can "tap out" and the player to their left will become the dealer.
