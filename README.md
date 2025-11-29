@@ -23,6 +23,7 @@ A player wins by having the most "Grapples" at the end of the game.
 - 2 or a Joker: The players turn is restarted and they receive the next card in the deck.
 - Jack: The player can can request to become the dealer by politely asking the current dealer to "tap out." If a dealer receives a Jack they cannot ask themselves to become dealer again. This would effectively reset their turns as dealer, allowing them more time as dealer.
 - Ace of Spades: The player can either immediatley request to become the dealer, or keep the Ace of Spades. The Ace of Spades is worth 0 grapples.
+- Queen: refer to [Loan Shark](#loan-shark)
 
 ### Dealer:
 There are 54 cards (standard deck with 2 jokers), any player can and likely will play as the dealer.
