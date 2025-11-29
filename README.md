@@ -46,13 +46,13 @@ A player wins by having the most "Grapples" at the end of the game.
 ## Dealer:
 There are 54 cards (standard deck with 2 jokers), any player can and likely will play as the dealer.
 
-Any dealer can look at the top card before any of their turns while they are the dealer. The dealer can deal the card they see to themself or give it to the player on the left/right of them. If the dealer chose to give the card to another player, the cards will be dealt in that direction, ultimately the dealer must choose which direction the cards will be dealt each time it is their turn. 'Their turn' is when the dealer is dealing to themself.
+Any dealer can look at the top card before any of their turns while they are the dealer. The dealer can deal the card they see to themselves or give it to the player on the left/right of them. If the dealer chose to give the card to another player, the cards will be dealt in that direction, ultimately the dealer must choose which direction the cards will be dealt each time it is their turn. 'Their turn' is when the dealer is dealing to themselves.
 
 If any player draws the Ace of Spades they can redeem it to immediatley become the dealer, or discard it.
 
 The first dealer is determined by pulling cards  (every player gets a card) from the pile until only one person has the highest value card.
 
-A dealer becoming the dealer does not make it the dealers turn, if the circle has a direction and it is not whoever just became the dealers turn, the dealer must continue dealing in that direction. Once it is the dealers turn again they can utilize the listed options for their potential card.
+A dealer becoming the dealer by "tap-out" does not make it the dealers turn, if the circle has a direction and it is not whoever just became the dealers turn, the dealer must continue dealing in that direction. Once it is the dealers turn again they can utilize the listed options for their potential card.
 
 ## Dealer: Tap Out
 A dealer can "tap out" and the player to their left will become the dealer.
