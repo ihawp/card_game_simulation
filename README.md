@@ -20,20 +20,18 @@ A player wins by having the most "Grapples" at the end of the game.
 - Ace: 1 (except for the Ace of Spades, which must eventually be discarded).
 
 ### If the card is a...
-- 2 or a Joker: The player can are dealt a second card on that turn only. This is called "Double-down."
+- 2 or a Joker: The players turn is restarted and they receive the next card in the deck.
 - Jack: The player can can request to become the dealer by politely asking the current dealer to "tap out." If a dealer receives a Jack they cannot ask themselves to become dealer again. This would effectively reset their turns as dealer, allowing them more time as dealer.
-- Ace of Spades: The player can either immediatley request to become the dealer and then discard the Ace of Spades, or just discard the Ace of Spades. 
+- Ace of Spades: The player can either immediatley request to become the dealer, or keep the Ace of Spades. The Ace of Spades is worth 0 grapples.
 
 ### Dealer:
 There are 54 cards (standard deck with 2 jokers), any player can and likely will play as the dealer.
 
-Any dealer can look at the top card before any of their turns while they are the dealer. The dealer can deal the card they see to themselves or give it to the player on the left/right of them. If the dealer chose to give the card to another player, the cards will be dealt in that direction, ultimately the dealer must choose which direction the cards will be dealt each time it is their turn. 'Their turn' is when the dealer is dealing to themselves.
+Any dealer can look at the top card before any of their turns while they are the dealer. The dealer can deal the card they see to themselves or give it to the player on the left/right of them. If the dealer chose to give the card to another player, the cards will be dealt in that direction, ultimately the dealer must decide whether they want to look at the top card or not and which direction the cards will be dealt each time it is their turn. 'Their turn' is when the dealer is dealing to themselves.
 
-If any player draws the Ace of Spades they can redeem it to immediatley become the dealer, or discard it.
+A dealer becoming the dealer by "tap-out" does not make it the dealers turn, if the circle has a direction and it is not whoever just became the dealers turn, the dealer must continue dealing in that direction. Once it is the dealers turn again they can utilize the listed options for their role and potential card.
 
-The first dealer is determined by pulling cards  (every player gets a card) from the pile until only one person has the highest value card.
-
-A dealer becoming the dealer by "tap-out" does not make it the dealers turn, if the circle has a direction and it is not whoever just became the dealers turn, the dealer must continue dealing in that direction. Once it is the dealers turn again they can utilize the listed options for their potential card.
+You get to decide who the first dealer is!
 
 ### Dealer: Tap Out
 A dealer can "tap out" and the player to their left will become the dealer.
@@ -91,7 +89,11 @@ The 2s/Jokers are a forced taking of the next card from the deck, while the othe
 
 For example, if a player decides to use their queen to do a queen trade, they first figure out how many cards they are allowed to select. In the simulation I use Math.floor(amount of cards in selected players hand / 2), in real life you might say "John has 9 cards, so let's minus 1 and divide that by 2, which is 4, so Samantha can take 4 cards from John," or "John has 8 cards, so let's divide by 2 and then minus 1, so Samantha can take 3 cards from John," and so on. Once that number k = 4 has been determined, and we know the total amount of cards in players hand = 10, there are 10C4 (210) different combinations available. The probabilities for choosing the best cards available varies by the hand available for choosing from.
 
-Another example is the odds of a player receiving the same card twice. This can ONLY happen if the player receives a 2/Joker, or the player becomes the dealer because they received a Jack/Ace of Spades or the dealer to their right "taps out" AND they decide to deal to themselves. Let's take the case of a player receiving the Ace of Spades to become the dealer, they choose dealing to themselves, which is about a +-35% chance in the simulation (in general), the odds of receiving the first ace were 4/54 (though the odds of it being the Ace of Spades were 1/54), the odds of then receiving a second ace is 3/53, which makes the P(two aces) = 4/54 * 3/53 = 12/2862 = 0.00419287% chance.
+#### Ace of Spades to Dealer
+
+Another example is the odds of a player receiving the same card twice. This can ONLY happen if the player receives a 2/Joker, or the player becomes the dealer because they received a Jack/Ace of Spades or the dealer to their right "taps out" AND they decide to deal to themselves. 
+
+Let's take the case of a player receiving the Ace of Spades to become the dealer, they choose dealing to themselves, which is about a +-35% chance in the simulation, but we'll just focus on the deck. The odds of receiving the first ace were 4/54 (though the odds of it being the Ace of Spades were 1/54), the odds of then receiving a second ace is 3/53, which makes the P(two aces) = 4/54 * 3/53 = 12/2862 = 0.00419287% chance.
 
 #### Multiple 2s
 
