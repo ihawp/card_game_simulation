@@ -1,11 +1,6 @@
 /*
     𝑃(𝐴 𝑜𝑟 𝐵) = 𝑃(𝐴) + 𝑃(𝐵) − 𝑃(𝐴 𝑎𝑛𝑑 𝐵)
     𝑃(𝐴|𝐵) = 𝑃(𝐴 𝑎𝑛𝑑 𝐵) 𝑃(𝐵)
-
-
-    My issue with the first 500 lines that I wrote here is that the game is built to run automatically all the way through to create a log of the data during the match. Which means for the UI, I will
-    have ................aslkdjaskjdhajskjdhasdk
-
 */
 
 class Card {
@@ -473,14 +468,6 @@ class Monitor {
             const cards = this.deck.getCards();
             this.startingDeck = [...cards];
         }
-
-        /* Determine who has the most "Grapples." Does that tie into their odds of winning?
-        const highestGrapples = this.findHighestGrapples(this.playerManager.players);
-        let expectedValues = this.findExpectedValues(this.deck);
-
-        this.logger.logKV('highestGrapples', highestGrapples);
-        this.logger.logKV('expectedValues', expectedValues);
-        */
     }
 
     monitorEnd() {
@@ -652,9 +639,6 @@ class GameManager {
 
 }
 
-// Stream the results through console GUI? Or web GUI?
-// Then I can put it on my website and send to my math teacher for viewing.
-// My goal is to NOT capture each entire state of the game for each turn, but instead the starting deck, and which cards were received by each player on each turn + times players used special cards, how they used them etc. to display animations of where the cards went.
 class PlaybackManager {
     constructor(monitor) {
         this.dom = document.getElementById("dom");
@@ -895,8 +879,6 @@ class PlaybackManager {
         });
     }
 
-    // when dealer deals to self sometimes it skips the first player in whichever direction they choose.
-
     async queenTrade(turn, finishedHanding) {
         if (this.log[turn]['queenTrade'] && finishedHanding) {
             return new Promise(async (res, rej) => {
@@ -955,9 +937,6 @@ class PlaybackManager {
 
             const value = turnInfo[key];
 
-            // Each key has a value, its presence though usually means that it is true.
-            // Do everything with the key/value present
-
             switch (key) {
                 case 'dealer':
                     const dealer = this.playersContainer.children[value];
@@ -990,16 +969,6 @@ class PlaybackManager {
                     this.playersContainer.appendChild(card);
                     const finishedHanding = await this.animateMovement(500, card, this.players[playerIndex].cardContainer, x1, y1, x2, y2);
 
-                    // everything is inside of this because I need to await the animations 
-                    // happening, because the end of the animation is when the player card
-                    // is moved the the main player container into a specific players
-                    // cardContainer, that difference is huge when the card is being moved
-                    // with requestAnimationFrame relative to the parent element.
-                    // I should have structure this whole function to be if statements 
-                    // that initialize variables and call functions, but I did not!
-                    // Rework the code? Oh come on, I may as well rebuild this tiny mess.
-
-                    // Do queen trade.
                     const queenTrade = await this.queenTrade(turn, finishedHanding);
 
                     if (this.log[turn]['lastTurn'] != undefined && queenTrade) {
@@ -1105,7 +1074,3 @@ new GameManager(
         { name: "PlayerSix", colour: "green", wins: 18 }
     ]
 );
-
-/*
-
-*/

@@ -1,6 +1,6 @@
 # Rules
 
-<sup>Last Updated: November 10, 2025.</sup>
+<sup>Last Updated: November 29, 2025.</sup>
 
 A players turn consists of being dealt at least 1 card from the non-replacement deck.
 
