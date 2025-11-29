@@ -213,7 +213,7 @@ class Player {
             cardsSelected.push(await this.take(cardSelected, player2));
         }
         this.logger.logKV('cardsSelected', cardsSelected);
-        console.log(player2.playerIndex);
+        this.logger.logKV('queenTrade', true);
         this.logger.logKV('playerSelectedQueenTrade', player2.playerIndex);
     }
 
@@ -226,6 +226,7 @@ class Player {
 
     // Take about half of the other players hand.
     queenOfSpadesTrade = async (index, player2) => {
+        this.logger.logKV('queenOfSpadesTrade', true);
         const count = this.calculateQueenTradeCards(player2);
         this.queenTrade(index, player2, count);
     }
@@ -346,9 +347,7 @@ class PlayerManager {
         switch (card.name) {
             case 'Queen':
                 if (trade) {
-                    this.logger.logKV('queenTrade', true);
                     if (isSpades) {
-                        this.logger.logKV('queenOfSpadesTrade', true);
                         return await player.queenOfSpadesTrade(index, player2);
                     }
                     const count = player.calculateQueenTradeCards(player2);
@@ -383,18 +382,6 @@ class PlayerManager {
             this.turn--;
         }
 
-    }
-
-    checkWinner() {
-        let mostGrapples = 0;
-        this.getPlayers().forEach(player => {
-            const cards = player.getCards();
-            if (cards.length == 0) return;
-            let grapples = 0;
-            cards.forEach(card => grapples += card.value);
-            if (grapples >= mostGrapples) this.winner = player;
-        });
-        this.logger.logKV('winner', this.winner.id);
     }
 
     addDealerTurn() { this.dealer.turnsAsDealer++; }
@@ -481,13 +468,22 @@ class Monitor {
         this.lastTurn = this.turn;
         this.turn = turn;
 
-        if (turn == -1) this.logger.logKV('lastTurn', this.lastTurn);
+        if (turn == -1) this.logger.logKV('lastTurn', true);
         if (turn == 1) {
             const cards = this.deck.getCards();
             this.startingDeck = [...cards];
         }
 
-        // Determine who has the most "Grapples." Does that tie into their odds of winning?
+        /* Determine who has the most "Grapples." Does that tie into their odds of winning?
+        const highestGrapples = this.findHighestGrapples(this.playerManager.players);
+        let expectedValues = this.findExpectedValues(this.deck);
+
+        this.logger.logKV('highestGrapples', highestGrapples);
+        this.logger.logKV('expectedValues', expectedValues);
+        */
+    }
+
+    monitorEnd() {
         const highestGrapples = this.findHighestGrapples(this.playerManager.players);
         let expectedValues = this.findExpectedValues(this.deck);
 
@@ -621,6 +617,8 @@ class GameManager {
                 isSelf = 1;
             }
 
+            this.monitor.monitorEnd();
+
             let newIndex = 1;
             let pl = this.playerManager.players.length;
             let di = this.playerManager.dealer.index;
@@ -642,7 +640,6 @@ class GameManager {
 
     stopRunning() {
         this.running = false;
-        this.playerManager.checkWinner();
         this.playbackManager = new PlaybackManager(this.monitor);
     }
 
@@ -670,6 +667,14 @@ class PlaybackManager {
 
         this.statDOM = {};
 
+        this.images = {
+            'spades': 'spades.svg',
+            'clubs': 'clubs.svg',
+            'diamonds': 'diamonds.png',
+            'hearts': 'hearts.svg',
+            'joker': 'joker.png'
+        }
+
         this.init();
     }
 
@@ -692,24 +697,24 @@ class PlaybackManager {
 
     init = () => {
         const parent = document.createElement('div');
+        parent.style.display = 'flex';
+        parent.style.flexDireciton = 'row';
+        parent.style.alignItems = 'center';
+        parent.style.marginLeft = '2rem';
+
 
         const buttonContainer = document.createElement('div');
-        const backButton = this.createButton('Last Turn');
-        const forwardButton = this.createButton('Next Turn');
-        backButton.addEventListener('click', this.lastTurn.bind(this));
+        const forwardButton = this.createButton('Start');
         forwardButton.addEventListener('click', this.nextTurn.bind(this));
-        buttonContainer.appendChild(backButton);
         buttonContainer.appendChild(forwardButton);
-        this.buttonSync.push(backButton);
         this.buttonSync.push(forwardButton);
 
         const playersContainer = document.createElement('div');
         const height = window.innerHeight / 2;
-        const heightString = `${height + 50}px`;
+        const heightString = `${height + 140}px`;
         playersContainer.style.position = 'relative';
         playersContainer.style.height = heightString;
-        playersContainer.style.backgroundColor = 'blue';
-
+        playersContainer.style.width = `${window.innerWidth}px`;
 
         let { length } = this.players;
         const circlePositions = this.circlePositions = this.createCirclePositions(length, height);
@@ -717,6 +722,7 @@ class PlaybackManager {
             const position = player.position = circlePositions[player.playerIndex];
             playersContainer.appendChild(this.createPlayer(player, position));
         });
+        playersContainer.style.userSelect = 'none';
         this.playersContainer = playersContainer;
 
         parent.appendChild(playersContainer);
@@ -739,12 +745,12 @@ class PlaybackManager {
         div.style.left = `${position[0]}px`;
         div.style.top = `${position[1]}px`;
 
-        div.style.backgroundColor = 'red';
-
         const cardContainer = document.createElement('div');
-        cardContainer.style.width = '100px';
-        cardContainer.style.height = '50px';
-        cardContainer.style.backgroundColor = 'red';
+        cardContainer.style.width = '160px';
+        cardContainer.style.height = 'max-content';
+        cardContainer.style.display = 'flex';
+        cardContainer.style.flexDirection = 'row';
+        cardContainer.style.flexWrap = 'wrap';
         cardContainer.style.width = window.innerHeight / 2;
         player.cardContainer = cardContainer;
         div.appendChild(cardContainer);
@@ -772,36 +778,25 @@ class PlaybackManager {
         const div = document.createElement('div');
         div.style.display = 'flex';
         div.style.flexDirection = 'column';
+        div.style.marginLeft = '2rem';
 
-        const keyMoments = document.createElement('ul'); // MAYBE
-
-        const expectedValues = document.createElement('ul');
+        const expectedValues = document.createElement('table');
 
         const turnCountContainer = document.createElement('div');
+        turnCountContainer.style.display = 'flex';
+        turnCountContainer.style.flexDirection = 'row';
+        turnCountContainer.style.alignItems = 'center';
+        turnCountContainer.innerText = 'Turn #';
         const turnCount = document.createElement('p');
         turnCountContainer.appendChild(turnCount);
 
-        const highestGrapplesContainer = document.createElement('div');
-        highestGrapplesContainer.style.backgroundColor = 'red';
-        const highestGrapplesText = document.createElement('p');
-        const highestGrapplesPlayer = document.createElement('p');
-        highestGrapplesText.innerText = '0';
-        highestGrapplesPlayer.innerText = 'Leader: N/A';
-        highestGrapplesContainer.appendChild(highestGrapplesText);
-        highestGrapplesContainer.appendChild(highestGrapplesPlayer);
         this.statDOM = { 
             ...this.statDOM, 
             expectedValues,
-            keyMoments, // MAYBE
-            highestGrapplesContainer, 
-            highestGrapplesText, 
-            highestGrapplesPlayer,
             turnCount
         };
 
         div.appendChild(turnCountContainer);
-        div.appendChild(highestGrapplesContainer);
-        div.appendChild(keyMoments);
         div.appendChild(expectedValues);
         return div;
     }
@@ -809,55 +804,146 @@ class PlaybackManager {
     createCard(realCard) {
         const card = document.createElement('div');
         card.id = realCard.id;
-        card.innerText = `${realCard.name} of ${realCard.type}`;
+        card.dataset.value = realCard.value;
         card.style.backgroundColor = '#fff';
         card.style.position = 'absolute';
         card.style.height = '110px';
         card.style.width = '80px';
-        return card;
-    }
+        card.style.borderRadius = '4px';
 
-    lastTurn(event) {
-        event.preventDefault();
-        if (this.turn - 1 < 0) return;
-        this.turn--;
-        this.generateState(this.turn, 0);
+        if (realCard.type == 'spades' || realCard.type == 'clubs') {
+            card.style.color = '#000';
+        } else if (realCard.type == 'diamonds' || realCard.type == 'hearts') {
+            card.style.color = 'red';
+        }
+
+        const name = document.createElement('p');
+        const name2 = document.createElement('p');
+        name.style.position = name2.style.position = 'absolute';
+        name.style.top = name.style.right = '2px';
+        name.style.fontWeight = name2.style.fontWeight = 'bold';
+        name2.style.bottom = name2.style.left = '2px';
+
+        name.innerText = name2.innerText = Number.isFinite(+realCard.name) ? realCard.name : realCard.name[0];
+
+        card.appendChild(name);
+        card.appendChild(name2);
+
+        const image = document.createElement('img');
+        image.src = 'images/' + this.images[realCard.type];
+        image.style.position = 'absolute';
+        image.style.left = image.style.top = '2px';
+        image.style.width = image.style.height = '20px';
+        const image2 = image.cloneNode();
+        image2.style.top = image2.style.left = 'unset';
+        image2.style.bottom = image2.style.right = '2px';
+        card.appendChild(image);
+        card.appendChild(image2);
+
+
+        return card;
     }
 
     nextTurn(event) {
         event.preventDefault();
+
+        
         if (this.turn + 1 > this.logLength) return;
         this.turn++;
         this.generateState(this.turn, 0);
+
+        setTimeout(() => {
+            this.buttonSync[0].dispatchEvent(new Event('click'));
+        }, 2500);
     }
 
     
-    animateMovement(duration, element, finalContainer, startX, startY, endX, endY) {
+    async animateMovement(duration, element, finalContainer, startX, startY, endX, endY) {
+        return new Promise((res, rej) => {
+            const startTime = performance.now();
 
-        const startTime = performance.now();
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                
+                const progress = Math.min(elapsed / duration, 1);
+                const currentX = startX + (endX - startX) * progress;
+                const currentY = startY + (endY - startY) * progress;
+                element.style.transform = `translate(${currentX}px, ${currentY}px)`;
 
-        function update(currentTime) {
-            const elapsed = currentTime - startTime;
-            
-            const progress = Math.min(elapsed / duration, 1);
-            const currentX = startX + (endX - startX) * progress;
-            const currentY = startY + (endY - startY) * progress;
-            element.style.transform = `translate(${currentX}px, ${currentY}px)`;
-            if (progress < 1) {
-                requestAnimationFrame(update);
-            } else {
-                finalContainer.appendChild(element);
-                element.style.transform = `translate(${0}px, ${0}px)`;
+                const currentWidth = String(element.style.width).replace('px', '');
+                const currentHeight = String(element.style.height).replace('px', '');
+
+                if (progress < 1 && currentWidth > 40) {
+                    element.style.width = `${currentWidth - 1}px`;
+                    element.style.height = `${currentHeight - 2}px`;
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    finalContainer.appendChild(element);
+                    element.style.transform = `translate(${0}px, ${0}px)`;
+                    element.style.position = 'relative';
+                    element.style.height = '40px';
+                    element.style.width = '30px';
+                    return res(true);
+                }
             }
-        }
 
-        // Start the very first frame loop
-        requestAnimationFrame(update);
+            // Start the very first frame loop
+            requestAnimationFrame(update);
+        });
     }
 
     // when dealer deals to self sometimes it skips the first player in whichever direction they choose.
 
-    generateState(turn, direction) {
+    async queenTrade(turn, finishedHanding) {
+        if (this.log[turn]['queenTrade'] && finishedHanding) {
+            return new Promise(async (res, rej) => {
+                const cardsSelected = this.log[turn]['cardsSelected'];
+                const cardReceived = this.log[turn]['receivedCard']; // id of card (the queen)
+                const queenDOM = document.getElementById(cardReceived);
+                const realPlayer = this.players[this.log[turn]['player']];
+                const actualPlayer = this.players[this.log[turn]['playerSelectedQueenTrade']]; // the actual player, selected by their index.
+                // Move the queen from the player who received the queens inventory
+                // to the other players inventory.
+                this.playersContainer.appendChild(queenDOM);
+                await this.animateMovement(
+                    750,
+                    queenDOM,
+                    actualPlayer.cardContainer,
+                    realPlayer.position[0],
+                    realPlayer.position[1],
+                    actualPlayer.position[0],
+                    actualPlayer.position[1]
+                );
+                // for each of the cards selected move the cards from the
+                // selectedplayers inventory to the players (person who
+                // got the queen) inventory
+                if (cardsSelected.length == 0) return res(true);
+                cardsSelected.forEach(async item => {
+                    const realCard = document.getElementById(item);
+                    this.playersContainer.appendChild(realCard);
+                    await this.animateMovement(
+                        750, 
+                        realCard, 
+                        realPlayer.cardContainer,
+                        actualPlayer.position[0],
+                        actualPlayer.position[1],
+                        realPlayer.position[0],
+                        realPlayer.position[1]
+                    );
+                });
+                res(true);
+            });
+        } else {
+            return true;
+        }
+    }
+
+    async generateState(turn, direction) {
+
+        this.disableButtons();
 
         this.statDOM['turnCount'].innerText = turn > 0 ? turn : '';
 
@@ -865,7 +951,7 @@ class PlaybackManager {
         if (turnInfo == undefined) return;
         
         const keys = Object.keys(turnInfo);
-        keys.forEach(key => {
+        keys.forEach(async key => {
 
             const value = turnInfo[key];
 
@@ -873,13 +959,7 @@ class PlaybackManager {
             // Do everything with the key/value present
 
             switch (key) {
-                case 'dealtLeft':
-                case 'dealtRight':
-                    console.warn(key);
-                    console.log(keys);
-                    break;
                 case 'dealer':
-
                     const dealer = this.playersContainer.children[value];
                     if (keys.includes('switchDealer')) return dealer.style.backgroundColor = 'transparent';
                     
@@ -890,17 +970,6 @@ class PlaybackManager {
                     }
                     dealer.style.backgroundColor = 'pink';
                     break;
-                case 'switchDealer':
-                    const newDealer = this.playersContainer.children[value];
-                    newDealer.style.backgroundColor = 'pink';
-                    break;
-                case 'highestGrapples':
-                    this.statDOM['highestGrapplesText'].innerText = `${value.topVal}`;
-                    this.statDOM['highestGrapplesPlayer'].innerText = `${value.leader.name}`;
-                    break;
-                case 'expectedValues':
-                    this.fillExpectedValues(this.statDOM['expectedValues'], value);
-                    break;
                 case 'receivedCard':
                     // display animation of dealer handing the cards to the player.
                     // get the cards values by the ids in value (which is array []).
@@ -910,8 +979,6 @@ class PlaybackManager {
                     const playerIndex = this.log[turn]['player'];
                     const dealer2 = this.circlePositions[dealerIndex];
                     const player = this.circlePositions[playerIndex];
-
-
                     const x1 = dealer2[0];
                     const y1 = dealer2[1];
                     const x2 = player[0];
@@ -919,122 +986,110 @@ class PlaybackManager {
 
                     const realCard = this.findCardById(value);
                     const card = this.createCard(realCard);
-                    
-                    //this.deck.slice(turn - 1, 1);
 
                     this.playersContainer.appendChild(card);
-                    this.animateMovement(500, card, this.players[playerIndex].cardContainer, x1, y1, x2, y2);
-                    break;
-                case 'queenTrade':
-                    console.warn('-----------------------');
-                    console.log(value);
-                    console.log(this.log[turn]);
+                    const finishedHanding = await this.animateMovement(500, card, this.players[playerIndex].cardContainer, x1, y1, x2, y2);
 
-                    const cardsSelected = this.log[turn]['cardsSelected'];
-                    console.log('cardsSelected', cardsSelected);
+                    // everything is inside of this because I need to await the animations 
+                    // happening, because the end of the animation is when the player card
+                    // is moved the the main player container into a specific players
+                    // cardContainer, that difference is huge when the card is being moved
+                    // with requestAnimationFrame relative to the parent element.
+                    // I should have structure this whole function to be if statements 
+                    // that initialize variables and call functions, but I did not!
+                    // Rework the code? Oh come on, I may as well rebuild this tiny mess.
 
-                    const cardReceived = this.log[turn]['receivedCard']; // id of card (the queen)
-                    console.log('cardReceived', cardReceived);
-                    const queen = this.findCardById(cardReceived); // card record from deck
-                    console.log(queen);
-                    const queenDOM = document.getElementById(cardReceived);
-                    console.log('queenDOM', queenDOM);
+                    // Do queen trade.
+                    const queenTrade = await this.queenTrade(turn, finishedHanding);
 
-                    const realPlayer = this.players[this.log[turn]['player']];
-                    console.log('realPlayer', realPlayer);
+                    if (this.log[turn]['lastTurn'] != undefined && queenTrade) {
 
-                    const playerSelected = this.log[turn]['playerSelectedQueenTrade']; // index of selected player to take cards from.
-                    console.log('playerSelected', playerSelected);
-                    const actualPlayer = this.players[playerSelected]; // the actual player, not just the selected index.
-                    console.log('actualPlayer', actualPlayer);
-                    console.log('actualPlayer cardContainer', actualPlayer.cardContainer);
-
-                    const possibleCardsCount = this.log[turn]['possibleCardsCount'];
-                    console.log('possibleCardsCount', possibleCardsCount);
-
-                    // Move the queen from the player who received the queens inventory
-                    // to the other players inventory.
-                    this.playersContainer.appendChild(queenDOM);
-                    this.animateMovement(
-                        10000, 
-                        queenDOM, 
-                        actualPlayer.cardContainer,
-                        realPlayer.position[0],
-                        realPlayer.position[1],
-                        actualPlayer.position[0],
-                        actualPlayer.position[1]
-                    );
-
-                    // for each of the cards selected move the cards from the
-                    // selectedplayers inventory to the players (person who
-                    // got the queen) inventory
-                    cardsSelected.forEach(item => {
-                        const realCard = document.getElementById(item);
                         setTimeout(() => {
-                            this.playersContainer.appendChild(realCard);
-                            this.animateMovement(
-                                10000, 
-                                realCard, 
-                                realPlayer.cardContainer,
-                                actualPlayer.position[0],
-                                actualPlayer.position[1],
-                                realPlayer.position[0],
-                                realPlayer.position[1]
-                            );
-                        }, 2000);
-                    });
+                            let winner = undefined;
+                            let highest = 0;
+                            let pcccTotalLength = 0;
+                            for (const player of this.players) {
+                                const pccc = player.cardContainer.children;
+                                pcccTotalLength += pccc.length;
+                                let value = 0;
+                                for (const card of pccc) {
+                                    value += Number(card.dataset.value);
+                                }
+                                if (value > highest) {
+                                    highest = value;
+                                    winner = player.id;
+                                }
+                            }
 
-                    // Move the queen from the player who received the queens inventory
-                    // to the other players inventory.
-
-                    // Animate this transaction.
-
-                    // Calculate final grapples based on the card ids in a players inventory. or attach value to the DOM item.
-
+                            const p = this.players.find(player => player.id == winner);
+                            alert(`Player ${p.name} wins with ${highest} grapples!`);
+                        }, 1500);
+                    }
+                    break;
+                case 'switchDealer':
+                    const newDealer = this.playersContainer.children[value];
+                    newDealer.style.backgroundColor = 'pink';
+                    break;
+                case 'expectedValues':
+                    this.fillExpectedValuesTable(this.statDOM['expectedValues'], value);
                     break;
             }
-
+            
         });
 
+    }
+
+    disableButtons() {
+        this.buttonSync.forEach(button => {
+            button.disabled = 'disabled';
+        });
+    }
+
+    enableButtons() {
+        this.buttonSync.forEach(button => {
+            button.disabled = undefined;
+        });
     }
 
     findCardById(id) {
         return this.deck.find(item => item.id == id);
     }
 
-    fillExpectedValues(ul, list) {
-        ul.innerHTML = '';
+    fillExpectedValuesTable(table, list) {
+        const tbody = table.querySelector('tbody') || table.createTBody();
+        tbody.innerHTML = '';
 
         const keys = Object.keys(list);
 
-        if (this.expectedValuesClone == undefined) {
-            this.expectedValuesClone = document.createElement('li');
-            this.expectedValuesClone.style.display = 'flex';
-            this.expectedValuesClone.style.flexDirection = 'row';
-            this.expectedValuesClone.style.alignItems = 'center';
-            this.expectedValuesClone.style.gap = '.75rem';
+        if (keys.length === 0) {
+            const row = tbody.insertRow();
+            const cell = row.insertCell();
+            cell.colSpan = 3;
+            cell.innerText = 'No data available.';
+            return;
+        }
+        
+        if (!table.querySelector('thead')) {
+            const thead = table.createTHead();
+            const headerRow = thead.insertRow();
+            const headers = ['Card Name', 'Chance', 'Amount of Card Remaining'];
+            headers.forEach(headerText => {
+                const th = document.createElement('th');
+                th.innerText = headerText;
+                headerRow.appendChild(th);
+            });
         }
 
-        if (keys == undefined) return;
-
-        const li = document.createElement('li');
-        const p = document.createElement('p');
-        p.innerText = 'Card Name | Percentage Chance | Amount of Card Remaining';
-        li.appendChild(p);
-        ul.appendChild(li);
-
         keys.forEach(key => {
-            const li = this.expectedValuesClone.cloneNode();
-            const p1 = p.cloneNode();
-            p1.innerText = `${key}`;
-            const p2 = p.cloneNode();
-            p2.innerText = `${list[key].chance}`;
-            const p3 = p.cloneNode();
-            p3.innerText = `${list[key].amount}`;
-            li.appendChild(p1);
-            li.appendChild(p2);
-            li.appendChild(p3);
-            ul.appendChild(li);
+            const row = tbody.insertRow();
+            const cell1 = row.insertCell();
+            const cell2 = row.insertCell();
+            const cell3 = row.insertCell();
+
+            cell1.innerText = `${key}`;
+            cell2.innerText = `${list[key].chance}%`;
+            cell3.innerText = `${list[key].amount}`;
+
         });
     }
     
@@ -1047,5 +1102,10 @@ new GameManager(
         { name: "PlayerThree", colour: "green", wins: 18 },
         { name: "PlayerFour", colour: "green", wins: 18 },
         { name: "PlayerFive", colour: "green", wins: 18 },
+        { name: "PlayerSix", colour: "green", wins: 18 }
     ]
 );
+
+/*
+
+*/
