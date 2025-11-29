@@ -28,11 +28,11 @@ A player wins by having the most "Grapples" at the end of the game.
 ### Dealer:
 There are 54 cards (standard deck with 2 jokers), any player can and likely will play as the dealer.
 
-Any dealer can look at the top card before any of their turns while they are the dealer. The dealer can deal the card they see to themselves or give it to the player on the left/right of them. If the dealer chose to give the card to another player, the cards will be dealt in that direction, ultimately the dealer must decide whether they want to look at the top card or not and which direction the cards will be dealt each time it is their turn. 'Their turn' is when the dealer is dealing to themselves.
+Any dealer can look at the top card before any of their turns while they are the dealer. The dealer can deal the card they see to themselves or give it to the player on the left/right of them. If the dealer chose to give the card to another player, the cards will be dealt in that direction. Ultimately the dealer must decide whether they want to look at the top card or not and which direction the cards will be dealt each time it is their turn. 'Their turn' is when the dealer is dealing to themselves.
 
-A dealer becoming the dealer by "tap-out" does not make it the dealers turn, if the circle has a direction and it is not whoever just became the dealers turn, the dealer must continue dealing in that direction. Once it is the dealers turn again they can utilize the listed options for their role and potential card.
+A dealer becoming the dealer by "tap-out" does not make it the dealers turn, if the circle has a direction and it is not whoever just became the dealers turn, the dealer must continue dealing in that direction. Once it is the dealers turn again they can utilize the listed options for their role.
 
-You get to decide who the first dealer is!
+The first dealer is determined randomly in this simulation.
 
 ### Dealer: Tap Out
 A dealer can "tap out" and the player to their left will become the dealer.
@@ -47,7 +47,6 @@ The Queen of Spades can be traded for half of another players hand. If the amoun
 Assuming all players are keeping their cards generally hidden, the player must point at the cards they want to trade the Queen for. The other player must accept the trade. The queen is 'disabled' and does not have the same functionality after the initial pull from the deck and trade are made.
 
 ## Probabilites
-
 An outline of the probabilities of the game + examples.
 
 ### Player/Dealer Turn:
