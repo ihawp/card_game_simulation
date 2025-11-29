@@ -16,8 +16,8 @@ A player wins by having the most "Grapples" at the end of the game.
 - Joker: -2
 - Queen/King: -10
 - Jack: 3
-- Number Cards: 2, 3, 4, 5, 6, 7, 8, 9 are worth face value, except for 10. 10 is worth -10.
-- Ace: 1 (except for the Ace of Spades, which must eventually be discarded).
+- Number Cards: 2, 3, 4, 5, 6, 7, 8, 9 are worth face value, except for 10, which is worth -10.
+- Ace: 1 (except for the Ace of Spades which is worth 0)
 
 ### If the card is a...
 - 2 or a Joker: The players turn is restarted and they receive the next card in the deck.
