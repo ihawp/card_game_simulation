@@ -45,38 +45,11 @@ The Queen of Spades can be traded for half of another players hand. If the amoun
 
 Assuming all players are keeping their cards generally hidden, the player must point at the cards they want to trade the Queen for. The other player must accept the trade. The queen is 'disabled' and does not have the same functionality after the initial pull from the deck and trade are made.
 
-## Events:
-- receivedCards
-- cardsSelected
-- switchDealer
-- queenTrade
-- playerSelectedQueenTrade
-- queenOfSpadesTrade
-- possibleCardsCount (amount of cards that can be selected in a queenTrade/- queenOfSpadesTrade)
-- removeAceOfSpades
-- winner
-- lastTurn
-- highestGrapples
-- expectedValues
-- dealer
-- player
-- isDealerTurn
-- turnsAsDealer
-- lookedAtCard
-- didntKeepCard
-- dealtLeft
-- dealtSelf
-- chooseDirection
-- dealtRight
-- playerTurn
-- multipleCards
+# Probabilites
 
-## Probability
+An outline of the probabilities of the game + examples.
 
-An outline of the probabilities of the game with very specific examples.
-
-### Player/Dealer Turn:
-```
+## Player/Dealer Turn:
 r = amount of that card type remaining
 x = amount of cards remaining in the deck
 
@@ -91,16 +64,15 @@ The odds that that card is a special card can be modeled as q/x.
 t = total amount of cards decided the player can take
 p = total amount of cards to choose from the selected player.
 
-If the special card is a...
+### If the special card is a...
 	- 2/Joker: The players turn starts over and they receive another card to make a decision with. 100% chance, the player must request and accept the second card.
 	- Queen: The player can choose between keeping the queen or trading it for another players cards with predefined formulas. 50/50 chance in simulation. The player can then choose t cards from p, which creates some number of possible combinations.
 	- Ace of Spades: The player can choose between discarding the ace or immediatley becoming the dealer and discarding the ace. 50/50 chance in simulation.
 	- Jack: The player can politely request to become the dealer or keep the jack (50/50 chance in simulation). If they decide to ask the other dealer, the other dealer has to decide whether they want to continue being the dealer, or if they want to give up their position to the other player, there is a 50/50 chance of both in the simulation.
-```
 
-### Dealer Turn difference:
-```
-A dealer, on their turn... 
+## Dealer Turn difference:
+
+### A dealer, on their turn... 
 
 - Can choose to peek the top card (50/50 chance in simulation) 
 - Can choose whether they want to deal to themselves, or to their left or right (32.333/self = 35.333/32.333 chance in simulation). In the simulation, a dealer deals away cards with a value < 1.
@@ -119,8 +91,8 @@ For example, if a player decides to use their queen to do a queen trade, they fi
 
 Another example is the odds of a player receiving the same card twice. This can ONLY happen if the player receives a 2/Joker, or the player becomes the dealer because they received a Jack/Ace of Spades or the dealer to their right "taps out" AND they decide to deal to themselves. Let's take the case of a player receiving the Ace of Spades to become the dealer, they choose dealing to themselves, which is about a +-35% chance in the simulation (in general), the odds of receiving the first ace were 4/54 (though the odds of it being the Ace of Spades were 1/54), the odds of then receiving a second ace is 3/53, which makes the P(two aces) = 4/54 * 3/53 = 12/2862 = 0.00419287% chance.
 
+### Multiple 2s
+
 There is also the possibility that a player receives multiple 2s, with 34 cards in the deck, and three 2s remaining. The first 2 is 3/34, the second 2 is 2/33, and a third 2 is 1/32, which makes the P(three twos) = 3/34 * 2/33 * 1/33 = 6 / 35,904 = 0.00016711% chance.
 
 The odds of a player receiving any card that allows them the situation to receive another card is (the amount of that card remaining / the amount of cards remaining in the deck) * (the amount of the other card remaining / the amount of cards remaining in the deck - 1).
-
-```
