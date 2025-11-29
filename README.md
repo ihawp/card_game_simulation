@@ -6,6 +6,10 @@ A players turn consists of being dealt at least 1 card from the non-replacement 
 
 A player wins by having the most "Grapples" at the end of the game.
 
+## View the simulation:
+
+[![Watch the simulation](https://img.youtube.com/vi/2ZGJhEYTmFs/0.jpg)](https://www.youtube.com/watch?v=2ZGJhEYTmFs)
+
 ## Events:
 - receivedCards
 - cardsSelected
